@@ -4,7 +4,7 @@
 [ -z $1 ] && echo "need a banner"
 [ -z $1 ] && exit
 
-URL=$(echo "'http://en.wikipedia.org/wiki/Declaration_of_Rights_of_Man?force=1&banner=$1'") &&
+URL=$(echo "http://en.wikipedia.org/wiki/Declaration_of_Rights_of_Man?force=1&banner=$1") &&
 #echo $URL &&
 cd ../ &&
 cd ../output &&
