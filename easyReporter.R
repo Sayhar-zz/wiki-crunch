@@ -435,7 +435,7 @@ splitOnLanguage <- function(LBVCL){
 }
 
 isJustBannerTest <- function(LBV){
-	if(! "landing" %in% colnames(df)){
+	if(! "landing" %in% colnames(LBV)){
 		return(TRUE)
 	}	
 	if(all(is.na(LBV$landing))){
