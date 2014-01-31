@@ -12,9 +12,10 @@
 #install.packages("binom", lib="~/.R/library")
 #install.packages("RSQLite", lib="~/.R/library")
 #install.packages("getopt", lib="~/.R/library")
-###YOU MIGHT NEED THIS: 
+###SETTINGS:
 isshadow <- FALSE
 issample <- FALSE
+isold <- FALSE
 variable_in_testname <- FALSE
 
 
@@ -118,12 +119,10 @@ genMetaTable <- function(){
 
 	if(!dbExistsTable(con, 'meta') || nrow(dbReadTable(con,"meta")) < 1){
 		size <- 0
-		metatable <- data.frame(test_id = character(size), var=character(size), multiple=character(size), country=character(size), language=character(size), winner = character(size), loser=character(size), bestguess=numeric(size), p = numeric(size), lowerbound=numeric(size), upperbound=numeric(size), totalimpressions=integer(size), totaldonations=integer(size), time=integer(size), type=integer(size), testname=character(size), stringsAsFactors=FALSE)
+		metatable <- data.frame(test_id = character(size), var=character(size), multiple=character(size), country=character(size), language=character(size), winner = character(size), loser=character(size), bestguess=numeric(size), p = numeric(size), lowerbound=numeric(size), upperbound=numeric(size), totalimpressions=integer(size), totaldonations=integer(size), time=integer(size), type=integer(size), testname=character(size), dollarimprovement=numeric(size), dollarlower=numeric(size), dollarupper=numeric(size), dollarimprovementpct=numeric(size), dollarlowerpct=numeric(size), dollarupperpct=numeric(size), stringsAsFactors=FALSE)
 	} else{
 		metatable <- dbReadTable(con, 'meta')
 	}
-	
-	
 	return(metatable)
 }
 
@@ -219,35 +218,10 @@ prepareLanding <- function(LBV, landing, clicks){
 }
 	
 
-doReport <- function(imps, clicks, metatable, LBV, testname, testid, country='YY', language='yy', write=FALSE, type='error'){
+doReport <- function(imps, clicks, metatable, LBV, testname, testid, settings, country='YY', language='yy', write=FALSE, type='error'){
 	variable <- toString(unique(LBV$variable))
 
-	settings <- list(landing_threshold=5, 	   #stop graphing when landing imps drop below X
-					banner_threshold=500,	   #stop graphing when banners/min drop below X
-					donate_threshold=5,		   #stop the graph when there are less than X donations per minute
-					#allowedtodrop=20,		   #how many irregular (not in TLBVVCL) banners are allowed before the test is dropped
-					allowedtodrop=99999999,
-					banner_total_threshold=10000,
-					landing_total_threshold=500, #if the total impressions are less than X, drop this test.
-					donationfloor=60,		   #how many total donations per value does the test need?
-					pmin=30,				   #the higher this number, the tighter the "% range" on the graph will be
-					numdots=50,				   #how many dots per graph
-					mask_fraction=1/15,        #used to see if a country should be put in the other category or not
-					etc_country="other",	   #name for "other" country category
-					unknown_country="unknown", #name for unknown countries
-					cols = c('purple4', "orangered", "lightseagreen", "steelblue1", "slategrey"),
-												#colors
-					landing_perminthreshold=20, #test needs at least 1 minute with at least X impressions
-					banner_perminthreshold=500,
-					alpha = .05,
-					beta = .2,
-					xamounts =c(3,5,10,50),    #which values we should use for reportD
-					col_amounts=c(1,3,5,10,15,20,25,30,50,100),
-											   # which columns of amountsource to show
-					col_other = 50,			   #'other' is > and < this
-					paytypes=c("amazon", "cc", "paypal"),   # These payment types will be in ecom 		
-					digitsround = 3 			# how many digits to round
-					)
+	
 
 	if(type %in% c("banner", "combo")) {
 		settings$threshold <- settings$banner_threshold
@@ -482,9 +456,9 @@ isJustLandingTest <- function(LBV){
 
 
 
-saveReport <- function(report, testid, testname, screenshots, errortable){
+saveReport <- function(report, testid, testname, screenshots, errortable, settings){
 	
-
+	roundby <- settings$digitsround
 	BV <- report$BV
 	value <- BV$value
 	banners <- BV$banner
@@ -495,6 +469,10 @@ saveReport <- function(report, testid, testname, screenshots, errortable){
 		return(list(success=FALSE, errortable=errortable))
 	}
 	
+
+	
+
+
 	#for each banner
 	#if that banner has a landing page next to it in BV (aka if combo test)
 	#find the image source for that landing page
@@ -578,31 +556,48 @@ saveReport <- function(report, testid, testname, screenshots, errortable){
 
 	print(x, type="html", file=reportpath, append=FALSE, include.rownames=FALSE, html.table.attributes="class='table table-hover table-bordered'")
 	#write.csv(report$A, file=file.path(report$path,'reportA.csv'), row.names=FALSE, quote=FALSE)
-	#if(!report$multiple){
-		colnames(report$B)[2] <- "$/impression"
-		colnames(report$B)[3] <- "donations/impression"
-		colnames(report$B)[4] <- "Dollar increase / 1000bi"
-		colnames(report$B)[5] <- "Donation increase / 1000bi"
-		#colnames(report$B)[6] <- "% impressions"
-		#colnames(report$B)[7] <- "absolute impression"
-		colnames(report$B)[7] <- "p"
-		colnames(report$B)[8] <- "power"
-		colnames(report$B)[9] <- "lower bound of confidence (donation)"
-		colnames(report$B)[10] <- "upper bound of confidence (donations)"
-		report$B[1,2] <- paste0(round(report$B[1,2], digits=2), "%")
-		report$B[1,3] <- paste0(round(report$B[1,3], digits=2), "%")
-		report$B[1,4] <- paste0("$", round(report$B[1,4], digits=2))
-		report$B[1,6] <- paste0("$", round(report$B[1,6], digits=2))
-		report$B[1,9] <- paste0(round(100 * report$B[1,9], digits=2), "%")
-		report$B[1,10] <- paste0(round(100 * report$B[1,10], digits=2), "%")
-		report$B[1,7] <- as.character(round(report$B[1,7], digits=5))
-		x <- xtable(report$B)
-		reportpath <- file.path(report$path, 'reportB.html')
-		print(x, type="html", file=reportpath, append=FALSE, include.rownames=FALSE, html.table.attributes="class='table table-hover table-bordered'")
-		
-		jpeg(file.path(report$path, "pamplona.jpeg"), width=1200, height=800)
-		print(report$graphtwo)
-		dev.off()
+	
+	dollarformat <- function(old){
+		new <- paste0("$", round(old, digits=2))
+		return(new)	
+	}
+
+	percentformat <- function(old){
+		new <- paste0(round(old, digits=2), "%")
+		return(new)
+	}
+
+	colnames(report$B)[2] <- "donations/impression"
+	colnames(report$B)[3] <- "Donation increase / 1000bi"
+	colnames(report$B)[4] <- "$/impression"
+	colnames(report$B)[5] <- "Dollar increase / 1000bi"
+	colnames(report$B)[6] <- "% impressions"
+	#a20diff
+	colnames(report$B)[8] <- "p"
+	colnames(report$B)[9] <- "power"
+	colnames(report$B)[10] <- "lower 95% confidence (donation)"
+	colnames(report$B)[11] <- "upper 95% confidence (donations)"
+	colnames(report$B)[12] <- "lower 95% confidence ($)"
+	colnames(report$B)[13] <- "upper 95% confidence ($)"
+
+	report$B[1,2] <- percentformat(report$B[1,2])
+	report$B[1,3] <- round(report$B[1,3], digits=roundby)
+	report$B[1,4] <- percentformat(report$B[1,4])
+	report$B[1,5] <- dollarformat(report$B[1,5])
+	report$B[1,6] <- percentformat(report$B[1,6])
+	report$B[1,7] <- dollarformat(report$B[1,7])
+	report$B[1,9] <- round(report$B[1,9], digits=roundby)
+	report$B[1,10] <- percentformat(report$B[1,10] * 100)
+	report$B[1,11] <- percentformat(report$B[1,11] * 100)
+	report$B[1,12] <- percentformat(report$B[1,12] * 100)
+	report$B[1,13] <- percentformat(report$B[1,13] * 100)
+	x <- xtable(report$B)
+	reportpath <- file.path(report$path, 'reportB.html')
+	print(x, type="html", file=reportpath, append=FALSE, include.rownames=FALSE, html.table.attributes="class='table table-hover table-bordered'")
+	
+	jpeg(file.path(report$path, "pamplona.jpeg"), width=1200, height=800)
+	print(report$graphtwo)
+	dev.off()
 	
 	#}
 	report$E[4] <- lapply(report$E[4], function(x){ x<-paste0(round(100*x, digits=2), "%")})
@@ -660,20 +655,31 @@ saveReport <- function(report, testid, testname, screenshots, errortable){
 	print(report$graphone)
 	dev.off()
 
+	
+
+
 	#diagnostic
-	for (i in 1:length(report$extraGraphs)) {
-		jpeg(file.path(report$path, paste0("diagnostic", i, ".jpeg")), width=1200, height=800)
-		print(report$extraGraphs[i])
-		dev.off()		
+	eg <- report$extraGraphs
+	for(name in names(eg)){
+		for(i in 1:length(eg[[name]])){
+			if(name == "blank"){
+				filename <- paste("diagnostic", i, sep="_")
+			}else{
+				filename <- paste("diagnostic", name, i, sep="_")
+			}
+			jpeg(file.path(report$path, paste0(filename, ".jpeg")), width=1200, height=800)	
+			print(report$extraGraphs[[name]][i])
+			dev.off()
+		}
 	}
 	
 	#if(!report$multiple){
-		extradata <- data.frame(text=c("Percentage difference between impressions", "Expected difference if they were served randomly and evenly"), num=c(report$extradata$diff,report$extradata$expected ), stringsAsFactors=FALSE)
-		extradata[nrow(extradata)+1,]<-c('The biggest country made up this % of total impressions', round( report$extradata$impshare, digits=5))	
+		#extradata <- data.frame(text=c("Percentage difference between impressions", "Expected difference if they were served randomly and evenly"), num=c(report$extradata$diff,report$extradata$expected ), stringsAsFactors=FALSE)
+		#extradata[nrow(extradata)+1,]<-c('The biggest country made up this % of total impressions', round( report$extradata$impshare, digits=5))	
 
-		x <- xtable(extradata, digits=5)
-		reportpath <- file.path(report$path, 'diagnostic_data.html')
-		print(x, type="html", file=reportpath, append=FALSE, include.colnames=FALSE, include.rownames=FALSE, html.table.attributes="class='table table-hover table-bordered'")
+		#x <- xtable(extradata, digits=5)
+		#reportpath <- file.path(report$path, 'diagnostic_data.html')
+		#print(x, type="html", file=reportpath, append=FALSE, include.colnames=FALSE, include.rownames=FALSE, html.table.attributes="class='table table-hover table-bordered'")
 	#}
 	
 
@@ -723,6 +729,34 @@ forCountryLanguage <- function(c, b, l, yesCountry=FALSE, yesLanguage=FALSE, met
 
 
 readwritereport <- function(clicks, banners, landing, metatable, errortable, LBVCL, theseshots, testid, testname, write, country='YY', language='yy'){
+	settings <- list(landing_threshold=5, 	   #stop graphing when landing imps drop below X
+					banner_threshold=500,	   #stop graphing when banners/min drop below X
+					donate_threshold=5,		   #stop the graph when there are less than X donations per minute
+					#allowedtodrop=20,		   #how many irregular (not in TLBVVCL) banners are allowed before the test is dropped
+					allowedtodrop=99999999,
+					banner_total_threshold=10000,
+					landing_total_threshold=500, #if the total impressions are less than X, drop this test.
+					donationfloor=60,		   #how many total donations per value does the test need?
+					pmin=30,				   #the higher this number, the tighter the "% range" on the graph will be
+					numdots=50,				   #how many dots per graph
+					mask_fraction=1/15,        #used to see if a country should be put in the other category or not
+					etc_country="other",	   #name for "other" country category
+					unknown_country="unknown", #name for unknown countries
+					cols = c('purple4', "orangered", "lightseagreen", "steelblue1", "slategrey"),
+												#colors
+					landing_perminthreshold=20, #test needs at least 1 minute with at least X impressions
+					banner_perminthreshold=500,
+					alpha = .05,
+					beta = .2,
+					xamounts =c(3,5,10,50),    #which values we should use for reportD
+					col_amounts=c(1,3,5,10,15,20,25,30,50,100),
+											   # which columns of amountsource to show
+					col_other = 50,			   #'other' is > and < this
+					paytypes=c("amazon", "cc", "paypal"),   # These payment types will be in ecom 		
+					digitsround = 3 			# how many digits to round
+					)
+
+
 	if(nrow(clicks) == 0){
 		report <- list(skip=TRUE, why=c(testid, toString(LBVCL$var[1]), "",country, language, 'no clicks'))
 		reports <- list()
@@ -755,7 +789,7 @@ readwritereport <- function(clicks, banners, landing, metatable, errortable, LBV
 			reports <- list()
 			reports[[1]] <- report
 		}else{
-			reports <- doReport(imps, clicks, metatable, LBVCL, testname, testid, country, language, write, type=type)			
+			reports <- doReport(imps, clicks, metatable, LBVCL, testname, testid, settings, country, language, write, type=type)			
 		}
 	}
 
@@ -763,7 +797,7 @@ readwritereport <- function(clicks, banners, landing, metatable, errortable, LBV
 		if(!report$skip) {
 			metatable <- report$metatable
 			if(write){
-				e <- saveReport(report, testid, testname, theseshots, errortable)
+				e <- saveReport(report, testid, testname, theseshots, errortable, settings)
 				errortable <- e$errortable
 			}
 		}
@@ -829,7 +863,7 @@ onetestid <- function(t, metatable, errortable, write, con, bigmem, sample){
 	c$timestamp <- as.POSIXct(c$unixtime, origin="1970-01-01", tz="UTC")
 	b$timestamp <- as.POSIXct(b$unixtime, origin="1970-01-01", tz="UTC")
 	l$timestamp <- as.POSIXct(l$unixtime, origin="1970-01-01", tz="UTC")
-	
+
 	LBVVCL <- subset(TLBVVCL, test_id == t)
 	if(nrow(LBVVCL) == 0){
 		warning(paste("TEST", t, "not found."))
@@ -864,7 +898,7 @@ onetestid <- function(t, metatable, errortable, write, con, bigmem, sample){
 				testname <- paste0(testname, urlvar)	
 			}
 			
-			#TODO - make sure this works.
+			
 		#}
 		tables <- forCountryLanguage(thisc, thisb, thisl, splitOnCountry(LBVCL), splitOnLanguage(LBVCL), metatable, errortable, LBVCL, theseshots, t, testname, write)		
 		metatable <- tables$metatable
@@ -1050,6 +1084,24 @@ fastABBA <- function(data, alpha, beta, roundby=3 ){
 }
 
 
+
+improvement <- function(controlsd, controlmean, varsd, varmean, alpha){
+	
+	lowbound <-  (alpha)/2
+	highbound <- 1-alpha + lowbound
+
+	newsd <- sqrt((varsd * varsd) + (controlsd * controlsd))
+	newmean <- varmean - controlmean
+	dist = qnorm(c(lowbound, highbound) , mean=newmean, sd=newsd) #p = .05, two-tailed
+	l = dist[1]
+	u = dist[2]
+
+	lowerboundrelativesuccess = l/controlmean
+	upperboundrelativesuccess = u/controlmean
+	return(list(upperbound=upperboundrelativesuccess, lowerbound=lowerboundrelativesuccess, mean=newmean, sd=newsd))
+}
+
+
 ABBA2 <- function(data, roundby=3, alpha=.05, beta=.2){
 	confidence <- 1 - alpha
 	power <- 1 - beta
@@ -1082,21 +1134,7 @@ ABBA2 <- function(data, roundby=3, alpha=.05, beta=.2){
 
 	varsd <- (varupper - varlower)/(2*z)
 
-	improvement <- function(controlsd, controlmean, varsd, varmean, alpha){
-		
-		lowbound <-  (alpha)/2
-		highbound <- 1-alpha + lowbound
-
-		newsd <- sqrt((varsd * varsd) + (controlsd * controlsd))
-		newmean <- varmean - controlmean
-		dist = qnorm(c(lowbound, highbound) , mean=newmean, sd=newsd) #p = .05, two-tailed
-		l = dist[1]
-		u = dist[2]
-
-		lowerboundrelativesuccess = l/controlmean
-		upperboundrelativesuccess = u/controlmean
-		return(list(upperbound=upperboundrelativesuccess, lowerbound=lowerboundrelativesuccess, mean=newmean, sd=newsd))
-	}
+	
 	
 	uplow <- improvement(controlsd, controlmean, varsd, varmean, alpha)
 	lowerboundrelativesuccess <- uplow$lowerbound
@@ -1259,7 +1297,7 @@ rangecalc <- function (data,alpha, beta){
 		if(c_s > c_t | v_s>v_t){
 			return(c(0,0,0,0))
 		}
-		tmp <- fastABBA(tmp, alpha, beta)$data
+		tmp <- ABBA2(tmp, alpha, beta)$data
 		return(c(tmp$impmean, tmp$implower, tmp$impupper, tmp$power))
 	}
 
@@ -1334,20 +1372,20 @@ newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c
 	}
 	
 	
-	title <- paste(name, "over time. Winner:")
+	title <- paste(name, "over time.")
 	sub <- paste("95% range at end: ", round(finalrow$implower * 100, 1), "% - ", round(finalrow$impupper * 100, 1), "%. Mean: ", round(finalmean * 100, 1), "%. \n ", sep="")
 	sub <- paste(sub , "Total banner impressions: ", (finalrow$Control_imps + finalrow$Variable_imps), "\n", sep="")
 	#sub <- paste(sub, "power at end: ", signif(finalrow$power,2))
 	if(extrasub != FALSE){
 		sub <- paste0(sub, "\n", extrasub, "\n")
 	}
-	if(finalrow$implower > 0){
-		title <- paste(title, variablename)
-	}else if (finalrow$impupper < 0){
-		title <- paste(title, controlname)
-	}else{
-		title <- paste0(title, " no clear winner. (", variablename, " is winning)")
-	}
+	#if(finalrow$implower > 0){
+	#	title <- paste0(title, variablename)
+	#}else if (finalrow$impupper < 0){
+	#	title <- paste0(title, controlname)
+	#}else{
+		title <- paste(title, variablename, "is winning")
+	#}
 	
 	linenames <- c("Upper bound of winning margin","P-value over time", "lower bound of winning margin", "Winning margin at end of sample")
 	if(finalimp != "none"){
@@ -1785,7 +1823,7 @@ paymentRow <- function(type, donations, clicks){
 topFrame_bottom <- function(topFrame){
 	#find the delta for each column in the topFrame.
 	topFrame[1] <- lapply(topFrame[1], as.character)
-	row <- c("Change:")
+	row <- c("Absolute change:")
 	for(i in 2:length(topFrame)){
 		delta <- topFrame[1,i] - topFrame[2,i]
 		row <- c(row, as.numeric(delta))
@@ -1832,7 +1870,8 @@ amount_dollars_shift <- function(donations, settings, agg=NA, absolute=FALSE){
 
 	
 	suppressWarnings(if(is.na(agg)){
-		agg <- amount_sum_dist_crunch(donations, settings)	
+		agg_country <- amount_sum_dist_crunch(donations, settings)	
+		agg <- agg_country$agg
 	})
 
 	tables <- list()
@@ -1903,15 +1942,17 @@ amountshift <- function(donations, settings, agg=NA, absolute=FALSE){
 }
 
 
-AvBline <- function(twolines, donations, settings){
+AvBline <- function(twolines, donations, dollardata, settings){
 	alpha <- settings$alpha
 	beta <- settings$beta
 	winner <- twolines$winner
 	loser <- twolines$loser
+	roundby <- settings$digitsround
 
 	winnerAmnts <- as.numeric(subset(donations, val==as.character(winner$name))$amountsource)
 	loserAmnts <- as.numeric(subset(donations, val!=as.character(winner$name))$amountsource)
-	wilcoxp <- wilcox.test(winnerAmnts, loserAmnts)$p.value
+	#wilcoxp <- wilcox.test(winnerAmnts, loserAmnts)$p.value
+	total_impressions <- 100 * (twolines$winner$impressions - twolines$loser$impressions) / twolines$loser$impressions
 
 	percentify <- function(A){
 		return((A - 1) * 100)
@@ -1934,16 +1975,24 @@ AvBline <- function(twolines, donations, settings){
 	if(binomdata[1,1] > binomdata[2,1] | binomdata[1,2] > binomdata[2,2]){
 		return(list(skip=TRUE, why="More donations than impressions. IMPOSSIBLE"))
 	}
-	bdata <- fastABBA(binomdata, alpha, beta, roundby=5)$data
+	bdata <- ABBA2(binomdata, alpha, beta, roundby=5)$data
 	p <- bdata$p
 	if(p > .01){
 		p <- round(p, digits=2)
 	}
 	#out = list(implower=lowerboundrelativesuccess, impupper=upperboundrelativesuccess, impmean=impmean, impsd=impsd, p=chisq.test(data)$p.value, controllower=controllower, controlupper=controlupper, controlmean=controlmean, controlsd=controlsd, varlower=varlower, varupper=varupper, varmean=varmean, varsd=varsd)
-
-	line <- data.frame('winner'= as.character(winner$name), 'pDollarsPerBI'=pAmountPerBI, 'pDonationsPerBI'=pdonationsPerBI, 'iDollars1000'=iDollarP1000bi, 'iDonations1000'=iDonationsP1000bi, 
+	
+	dollarlower <- signif(dollardata$dollarlowerpct, roundby)
+	dollarupper <- signif(dollardata$dollarupperpct, roundby)
+	line <- data.frame('winner'= as.character(winner$name), 
+		pDonationsPerBI=pdonationsPerBI, iDonations1000=iDonationsP1000bi,
+		pDollarsPerBI=pAmountPerBI, iDollars1000=iDollarP1000bi,
+		total_impressions=total_impressions,
 		#'pBannerImpressions'=pImps, 'deltaBannerImpressions'=tImps,
-		 a20diff= a20diff, p=p, power=bdata$power, lower9580=bdata$implower, upper9580=bdata$impupper, wilcoxp=wilcoxp, stringsAsFactors=FALSE)
+		 a20diff= a20diff, p=p, power=bdata$power, lower9580=bdata$implower, upper9580=bdata$impupper, 
+		 dollarlower=dollarlower, dollarupper=dollarupper,
+		 #wilcoxp=wilcoxp, 
+		 stringsAsFactors=FALSE)
 	return(list(line=line, skip=FALSE))
 }
 
@@ -2012,13 +2061,12 @@ graphreports <- function(cleaneddata, clicks, imps, settings, testname="test", t
 		extraGraphs <- c(extraGraphs, list(D, E))
 	}
 	extraGraphs <- c(extraGraphs, list(F, G, H, K))
-	extraGraphs <- c(extraGraphs, I)
-	extraGraphs <- c(extraGraphs, J)
+	extraGraphs <- list(blank=extraGraphs, amount=c(I,J))
 
-	impdiff_expected <- bannerCheck(dataCUM)
-	extradata <- list(diff = impdiff_expected$diff, expected = impdiff_expected$expected, impshare = biggest_BI_share(imps))
+	#impdiff_expected <- bannerCheck(dataCUM)
+	#extradata <- list(diff = impdiff_expected$diff, expected = impdiff_expected$expected, impshare = biggest_BI_share(imps))
 
-	
+	extradata <- c()
 	return(list(path=path, one=one, two=two, extra=extraGraphs, extradata = extradata))
 }
 
@@ -2236,7 +2284,8 @@ paymentInsert <- function(donations, clicks){
 amount_dist_crunch <- function(clicks, settings){
 	showamounts <- settings$col_amounts
 	showother <- settings$col_other
-	clicks <- subset(clicks, country == "US")
+	biggest_country <- tail(aggregate(amountsource ~ country, clicks, length),1)$country
+	clicks <- subset(clicks, country == biggest_country)
 	c2 <- clicks[which(clicks$amount > 0),]
 	#c2 is only donations
 	
@@ -2272,22 +2321,25 @@ amount_dist_crunch <- function(clicks, settings){
 	order_ <- c(order_, smallname, smallname, bigname, bigname)
 	agg3 <- rbind(agg3, smallotheramount)
 	agg3 <- rbind(agg3, bigotheramount)
-	return(agg3)
+	toreturn <- list(agg=agg3, country=biggest_country)
+	return(toreturn)
 }
 
 amount_dist <- function(clicks, settings){
-	agg3 <- amount_dist_crunch(clicks, settings)
+	agg_country <- amount_dist_crunch(clicks, settings)
+	agg3 <- agg_country$agg
+	country <- agg_country$country
 	cols <- settings$cols
 	
 	agg <- amountshift(clicks, settings, agg=agg3, absolute=FALSE)
 
-	improvements <- improvement_barcharts(agg, settings)
+	improvements <- improvement_barcharts(agg, settings, country=country)
 	agg <- amountshift(clicks, settings, agg=agg3, absolute=TRUE)
-	improvements2 <- improvement_barcharts(agg, settings, ispercent=FALSE)
+	improvements2 <- improvement_barcharts(agg, settings, ispercent=FALSE, country=country)
 	improvements <- c(improvements, improvements2)
 
 	base <- barchart(freq ~ amountsource, data=agg3, horizontal=FALSE, 
-		col=cols, main="Donations per amountsource for USA", origin=0,  groups=val, beside=TRUE,
+		col=cols, main=paste("Donations per amountsource for", country), origin=0,  groups=val, beside=TRUE,
 		auto.key=list(space="bottom", cex=2, points=FALSE, rectangles=FALSE, col=cols))
 	toreturn <- list(base=base, improvements=improvements)
 	return(toreturn)
@@ -2296,7 +2348,8 @@ amount_dist <- function(clicks, settings){
 amount_sum_dist_crunch <- function(clicks, settings){
 	showamounts <- settings$col_amounts
 	showother <- settings$col_other
-	clicks <- subset(clicks, country == "US")
+	biggest_country <- tail(aggregate(amountsource ~ country, clicks, length),1)$country
+	clicks <- subset(clicks, country == biggest_country)
 	c2 <- clicks[which(clicks$amount > 0),]
 
 	agg <- aggregate(amount ~ amountsource * val * country, c2, sum)
@@ -2331,31 +2384,31 @@ amount_sum_dist_crunch <- function(clicks, settings){
 	order_ <- c(order_, smallname, smallname, bigname, bigname)
 	agg3 <- rbind(agg3, smallotheramount)
 	agg3 <- rbind(agg3, bigotheramount)
-
-	return(agg3)
+	toreturn <- list(agg=agg3, country=biggest_country)
+	return(toreturn)
 }
 
 amount_sum_dist <- function(clicks, settings){
 	cols <- settings$cols
-	agg3 <- amount_sum_dist_crunch(clicks, settings)
+	agg_country <- amount_sum_dist_crunch(clicks, settings)
+	agg3 <- agg_country$agg
+	country <- agg_country$country
 	
-	
-
 	agg <- amount_dollars_shift(clicks, settings, agg=agg3)
-	improvements <- improvement_barcharts(agg, settings)
+	improvements <- improvement_barcharts(agg, settings, country=country)
 
 	agg <- amount_dollars_shift(clicks, settings, agg=agg3, absolute=TRUE)
-	improvements2 <- improvement_barcharts(agg, settings, ispercent=FALSE)
+	improvements2 <- improvement_barcharts(agg, settings, ispercent=FALSE, country=country)
 	improvements <- c(improvements, improvements2)
 	base <- barchart(amount ~ amountsource, data=agg3, horizontal=FALSE, 
-		col=cols, main="$ per amountsource for USA", origin=0,  groups=val, beside=TRUE,
+		col=cols, main=paste("$ per amountsource for", country), origin=0,  groups=val, beside=TRUE,
 		auto.key=list(space="bottom", cex=2, points=FALSE, rectangles=FALSE, col=cols))
 
 	toreturn <- list(base=base, improvements=improvements)
 	return(toreturn)
 }
 
-improvement_barcharts <- function(agg, settings, ispercent=TRUE){
+improvement_barcharts <- function(agg, settings, ispercent=TRUE, country=NA){
 	cols <- settings$cols
 	improvements <- list()
 
@@ -2364,6 +2417,8 @@ improvement_barcharts <- function(agg, settings, ispercent=TRUE){
 	}else{
 		ylabel <- "change (absolute)"
 	}
+
+	if(is.na(country)){ country <- ""}
 	
 	i <- 0
 	for(valtable in agg){
@@ -2373,7 +2428,7 @@ improvement_barcharts <- function(agg, settings, ispercent=TRUE){
 		valtable$change <- lapply(valtable$change, as.character)
 		valtable$change <- lapply(valtable$change, as.numeric)
 		tmp <- barchart(change ~ amountsource, data=valtable, 
-			horizontal=FALSE, main=title, col=cols[i],
+			horizontal=FALSE, main=paste(title, "in", country), col=cols[i],
 			ylab = ylabel,
 			auto.key=list(space="bottom", cex=2, points=FALSE, rectangles=FALSE, col=cols),
 			panel=function(x, y,...){
@@ -2543,6 +2598,80 @@ combineData <- function(imps, donations, clicks, BV, settings){
 	return(data)
 }
 
+bootstrapper_confint <- function(sample, settings, size=1000){
+	alpha <- settings$alpha
+	#confidence <- 1 - alpha
+
+	lowbound <-  (alpha)/2
+	highbound <- 1-alpha + lowbound
+
+	stats <- c()
+	for(i in 1:size){
+		subsample <- sample(sample, length(sample), replace=T)
+		stats <- c(stats, mean(subsample))
+	}
+
+	lower <- quantile(stats, lowbound) #lowbound is typically .025
+	upper <- quantile(stats, highbound) # highbound is typically .975
+
+	toreturn <- list(lower=lower, upper=upper)
+}
+
+continuous_conf_finder <- function(imps, donations, value){
+	imps <- subset(imps, val==value)$imps
+	numimps <- sum(imps)
+	donations <- subset(donations, val==value)$amount
+	numdonate <- length(donations)
+	numskip <- numimps - numdonate
+	total <- c(donations, rep(0, numskip))
+	conf <- t.test(total)$conf.int
+	mean <- mean(total)
+	conf <- c(conf, mean)
+	return(conf)
+}
+
+dollarCrunch <- function(imps, donations, control, variable, settings){
+	alpha <- settings$alpha
+	z <- z_value(alpha)
+
+	#Control
+	control_conf <- continuous_conf_finder(imps, donations, control)
+	controllower <- control_conf[1]
+	controlupper <- control_conf[2]
+	controlmean  <- control_conf[3]
+	controlsd <- (controlupper - controllower)/(2*z)
+
+	variable_conf <- continuous_conf_finder(imps, donations, variable)
+	varlower <- variable_conf[1]
+	varupper <- variable_conf[2]
+	varmean  <- variable_conf[3] 
+	varsd <- (varupper - varlower)/(2*z)
+
+	uplow <- improvement(controlsd, controlmean, varsd, varmean, alpha)
+	lowerboundrelativesuccess <- uplow$lowerbound
+	upperboundrelativesuccess <- uplow$upperbound
+	newmean <- uplow$mean
+	newsd <- uplow$sd
+	#Not sure what this is. Copied blindly from ABBA documentation.
+	impmean <- newmean / controlmean
+	impsd <- newsd / controlmean
+	
+	dollarimprovement <- impmean * controlmean
+	dollarlower <- lowerboundrelativesuccess * controlmean
+	dollarupper <- upperboundrelativesuccess * controlmean
+
+	toreturn <- list(
+	dollarimprovement=dollarimprovement,
+	dollarlower=dollarlower,
+	dollarupper=dollarupper,
+	dollarimprovementpct=impmean,
+	dollarlowerpct=lowerboundrelativesuccess,
+	dollarupperpct=upperboundrelativesuccess
+	)
+	return(toreturn)
+}
+
+
 predictWinningVal <- function(icb){
 	imps <- icb$imps
 	clicks <- icb$clicks
@@ -2617,7 +2746,7 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 		
 	}
 
-	topline <- function(banners, clicks, donations, settings, iswinner=TRUE){
+	topline <- function(banners, clicks, donations, dollardata, settings, iswinner=TRUE){
 	
 		winLoseResult <- function(which){
 			return(onelineResult(which, subset(clicks, val==which), subset(donations, val==which), subset(banners, val==which), settings))
@@ -2670,7 +2799,7 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 			return(list(winner=B, loser=A))
 		}
 
-		AvB <- AvBline(findwinner(AB[1,], AB[2,]), donations, settings)
+		AvB <- AvBline(findwinner(AB[1,], AB[2,]), donations, dollardata, settings)
 		if(AvB$skip){
 			return(AvB)
 		}
@@ -2699,7 +2828,9 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 	
 	}
 	
-	updatemetatable <- function(metatable, cleaneddata, language, var, multiple, country, type, settings, testname){
+	updatemetatable <- function(metatable, cleaneddata, dollardata, language, var, multiple, country, type, settings, testname){
+		roundby <- settings$digitsround
+
 		controlname <- cleaneddata$control
 		variablename <- cleaneddata$variable
 		data <- cleaneddata$data
@@ -2730,13 +2861,21 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 		insertinto$multiple <- multiple
 		insertinto$winner <- toString(variablename)
 		insertinto$loser <- toString(controlname)
-		insertinto$lowerbound <- signif(lastrow$implower * 100, 3)
-		insertinto$upperbound <- signif(lastrow$impupper * 100, 3)
-		insertinto$bestguess <- signif(lastrow$impmean * 100, 3)
+		insertinto$lowerbound <- signif(lastrow$implower * 100, roundby)
+		insertinto$upperbound <- signif(lastrow$impupper * 100, roundby)
+		insertinto$bestguess <- signif(lastrow$impmean * 100, roundby)
 		insertinto$totalimpressions <- (lastrow$Control_imps + lastrow$Variable_imps)
 		insertinto$totaldonations <- (lastrow$Control_donations + lastrow$Variable_donations)
 		insertinto$time <- start
 		insertinto$type <- type
+		insertinto$testname <- testname
+		insertinto$dollarimprovement <- signif(dollardata$dollarimprovement, roundby)
+		insertinto$dollarlower <- signif(dollardata$dollarlower, roundby)
+		insertinto$dollarupper <- signif(dollardata$dollarupper, roundby)
+		insertinto$dollarimprovementpct <- signif(dollardata$dollarimprovementpct * 100, roundby)
+		insertinto$dollarlowerpct <- signif(dollardata$dollarlowerpct * 100, roundby)
+		insertinto$dollarupperpct <- signif(dollardata$dollarupperpct * 100, roundby)
+
 		#insertinto$testname <- testname
 		#if(!iswinner || lastrow$implower < 0 ){
 		#	insertinto$winner <- paste0("(NO CLEAR WINNER): ", insertinto$winner)
@@ -2776,8 +2915,10 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 	
 	data <- combineData(imps, donations, clicks, BV, settings)
 	saveThis <- data
-	toplineData <- topline(data$imps, data$clicks, data$donations, settings, iswinner=data$isclearwinner)
+	dollardata <- dollarCrunch(data$imps, data$donations, data$control, data$variable, settings)
+	toplineData <- topline(data$imps, data$clicks, data$donations, dollardata, settings, iswinner=data$isclearwinner)
 
+	
 
 	if(toplineData$skip){
 		start <- as.numeric(data$data[1,]$minute)
@@ -2814,7 +2955,7 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 		return(list(skip=TRUE, why=errorline))
 	}
 	
-	mtable <- updatemetatable(metatable, data, language, var, multiple, country, type, settings, testname)
+	mtable <- updatemetatable(metatable, data, dollardata, language, var, multiple, country, type, settings, testname)
 	
 	toreturn <- list(
 		#F=toplineData$F, G=toplineData$G, 
@@ -2824,30 +2965,53 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 	return (toreturn)
 }
 
+
+
+###############
+###############
+###############
+###############
+#### SETUP ####
+###############
+###############
+###############
+###############
+
+
 if(issample){
 	oneForm <- read.delim("./sample/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
 }else{
 	oneForm <- read.delim("./data/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
 }
 
+if(isold){
+	TLBVVCL <- read.delim("./data/TLBVVCL.tsv", quote="", na.strings = "", strip.white=TRUE)
+	TLBVVCL[c("split.on.country", "split.on.language")][is.na(TLBVVCL[c("split.on.country", "split.on.language")])] <- FALSE
+	screenshots <- read.delim("./data/screenshots.tsv", quote="", na.strings = "", stringsAsFactors=FALSE)
+	screenshots <- data.frame(apply(screenshots, c(1,2), function(x){gsub("[[:space:]]+", "", x)}), stringsAsFactors=FALSE)
+	TLBVVCL <- data.frame(apply(TLBVVCL, c(1,2), function(x){gsub("[[:space:]]+", ".", x)}))
+	TLBVVCL <- data.frame(apply(TLBVVCL, c(1,2), function(x){gsub(".TRUE", TRUE, x)}))
+	TLBVVCL$link <- NULL
+}else{
+	oneForm <- oneForm[rowSums(is.na(oneForm)) != ncol(oneForm),] #snippet from http://stackoverflow.com/questions/6437164/removing-empty-rows-of-a-data-file-in-r
+	TBVD <- oneForm[c("test_id", 'Banner','Variable', 'Description', 'Description')]
+	TBVD['split.on.country'] <- FALSE
+	TBVD['split.on.language'] <- FALSE
+	colnames(TBVD) <- c('test_id', 'banner', 'variable', 'description', 'value', 'split.on.language', 'split.on.country')
+	TBVD[c("split.on.country", "split.on.language")][is.na(TBVD[c("split.on.country", "split.on.language")])] <- FALSE
+	TBVD <- data.frame(apply(TBVD, c(1,2), function(x){gsub("[[:space:]]+", ".", x)}))
+	TBVD <- data.frame(apply(TBVD, c(1,2), function(x){gsub(".TRUE", TRUE, x)}))
+
+	TLBVVCL <- TBVD
+
+	screenshots <- oneForm[c('test_id', 'Banner', 'Screenshot', 'Extra.Screenshot')]
+	colnames(screenshots) <- c("test_id", 'banner.or.landing', 'screenshot', 'extra_screenshot_1')
+	screenshots$campaign <- NA
+	screenshots$extra_screenshot_2 <- NA
+	screenshots <- screenshots[c('test_id', "banner.or.landing", "campaign", "screenshot", "extra_screenshot_1", "extra_screenshot_2")]
+	screenshots <- data.frame(apply(screenshots, c(1,2), function(x){gsub("[[:space:]]+", "", x)}), stringsAsFactors=FALSE)
+}
 #delete blank lines
-oneForm <- oneForm[rowSums(is.na(oneForm)) != ncol(oneForm),] #snippet from http://stackoverflow.com/questions/6437164/removing-empty-rows-of-a-data-file-in-r
-TBVD <- oneForm[c("test_id", 'Banner','Variable', 'Description', 'Description')]
-TBVD['split.on.country'] <- FALSE
-TBVD['split.on.language'] <- FALSE
-colnames(TBVD) <- c('test_id', 'banner', 'variable', 'description', 'value', 'split.on.language', 'split.on.country')
-TBVD[c("split.on.country", "split.on.language")][is.na(TBVD[c("split.on.country", "split.on.language")])] <- FALSE
-TBVD <- data.frame(apply(TBVD, c(1,2), function(x){gsub("[[:space:]]+", ".", x)}))
-TBVD <- data.frame(apply(TBVD, c(1,2), function(x){gsub(".TRUE", TRUE, x)}))
-
-TLBVVCL <- TBVD
-
-screenshots <- oneForm[c('test_id', 'Banner', 'Screenshot', 'Extra.Screenshot')]
-colnames(screenshots) <- c("test_id", 'banner.or.landing', 'screenshot', 'extra_screenshot_1')
-screenshots$campaign <- NA
-screenshots$extra_screenshot_2 <- NA
-screenshots <- screenshots[c('test_id', "banner.or.landing", "campaign", "screenshot", "extra_screenshot_1", "extra_screenshot_2")]
-screenshots <- data.frame(apply(screenshots, c(1,2), function(x){gsub("[[:space:]]+", "", x)}), stringsAsFactors=FALSE)
 
 
 
@@ -2884,17 +3048,14 @@ if(!is.na(tid)){
 	}
 	rTemp <- allreport(testid=tid, write=towrite, showerror=TRUE)	
 }else{
-	#print('Crunching all tests')
-	#print("except instead we'll crunch none of them.")
-	#rTemp <- allreport(write=TRUE)	
+	#rTemp <- allreport(write=TRUE)
 	print("script loaded")
-	#rTemp <- allreport(write=TRUE, sample=issample, showerror=TRUE)	
 }
 
-#rTemp <- allreport(write=TRUE, sample=TRUE)	
+
 ###
 ### IF YOU'VE DOWNLOADED THIS FROM GITHUB
 ### Run this to use the sample data
 
-#rTemp <- allreport(write=TRUE, sample=TRUE)	
+#rTemp <- allreport(write=TRUE, sample=TRUE, showerror=TRUE)
 
