@@ -14,7 +14,6 @@ gc = gspread.login(email, password)
 ws = gc.open_by_key(key).sheet1
 
 
-
 #given easyform, and given all_bannernames, match up bannernames (except those already in easyform)
 
 #Write headers to outfile:
@@ -70,8 +69,7 @@ def write_to_file(testname, test):
 		ws.append_row(row)
 	ws.append_row(['','',''])
 
-def skipthis(testname):
-	form = ws.get_all_values()
+def skipthis(testname, form):
 	#alreadywritten = open('../../data/easyform.tsv', 'r')
 	skipthese = []
 	#ardr = csv.reader(alreadywritten, dialect='excel-tab')
@@ -105,7 +103,7 @@ def skipthis(testname):
 
 f = open('../../data/all_bannernames.tsv','r')
 reader = csv.reader(f, dialect='excel-tab')
-
+form = ws.get_all_values()
 testdict = {}
 test_order = []
 orphans = []
@@ -116,7 +114,7 @@ thistestname = ""
 for line in reader:
 	name = line[0]
 	amount = int(line[1])
-	if skipthis(name):
+	if skipthis(name, form):
 		print "skipping " + name
 		continue
 	#if first line, set latest to this

@@ -10,7 +10,7 @@ from
 	drupal.contribution_tracking ct
 	left join civicrm.civicrm_contribution cc on ct.contribution_id = cc.id
     WHERE 
-    ts > '20131201010101' and
+    ts > '20140101010101' and
 	unix_timestamp(ts) >= unix_timestamp(NOW()) - 60
 )
 as lastminute
