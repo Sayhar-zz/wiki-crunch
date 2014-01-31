@@ -63,7 +63,13 @@ CREATE TABLE fr_test.meta
 	totaldonations INTEGER unsigned,
 	time integer unsigned,
 	type VARCHAR(255),
-	testname VARCHAR(255)
+	testname VARCHAR(255),
+	dollarimprovement FLOAT,
+	dollarlower FLOAT, 
+	dollarupper FLOAT,
+	dollarimprovementpct FLOAT,
+	dollarlowerpct FLOAT, 
+	dollarupperpct FLOAT
 );
 
 
