@@ -17,7 +17,7 @@ isshadow <- FALSE
 issample <- FALSE
 isold <- FALSE
 variable_in_testname <- FALSE
-
+towrite <- TRUE
 
 library(xtable, quietly=TRUE)
 library(latticeExtra, quietly=TRUE)
@@ -832,6 +832,11 @@ onetestid <- function(t, metatable, errortable, write, con, bigmem, sample){
 		b <- dbGetQuery(con, paste0("SELECT * from banners where test_id = '", t,"'"))
 		l <- dbGetQuery(con, paste0("SELECT * from landings where test_id = '", t, "'"))
 	}
+	if(nrow(c) < 1){
+		errortable <- addOrUpdateErrorTable(errortable, c(t, "", "","YY", 'yy', 'no clicks'))
+		return( list(metatable=metatable, errortable=errortable))
+	}
+
 	#some edge-case cleanup
 	if(nrow(b) > 0){
 		b[b == 'none'] <- NA	
@@ -879,15 +884,8 @@ onetestid <- function(t, metatable, errortable, write, con, bigmem, sample){
 		LBVCL <- subset(LBVVCL, variable == var)
 		#urlvar <- unique(LBVCL$variable.for.url)[1]
 		urlvar <- unique(LBVCL$variable)[1]
-		thisc <- subset(c, test_id == t)
-		thisb <- subset(b, test_id == t)
-		if(nrow(l) > 0){
-			thisl <- subset(l, test_id == t)	
-		}else{
-			thisl <- l
-		}
-		
-		if(nrow(thisc) < 1 || nrow(thisb) < 1){
+	
+		if(nrow(c) < 1 || nrow(b) < 1){
 			errortable <- addOrUpdateErrorTable(errortable, c(t, var, "","YY", 'yy', 'no clicks (or possibly banners)'))
 			next
 		}
@@ -900,7 +898,8 @@ onetestid <- function(t, metatable, errortable, write, con, bigmem, sample){
 			
 			
 		#}
-		tables <- forCountryLanguage(thisc, thisb, thisl, splitOnCountry(LBVCL), splitOnLanguage(LBVCL), metatable, errortable, LBVCL, theseshots, t, testname, write)		
+
+		tables <- forCountryLanguage(c, b, l, splitOnCountry(LBVCL), splitOnLanguage(LBVCL), metatable, errortable, LBVCL, theseshots, t, testname, write)		
 		metatable <- tables$metatable
 		errortable <- tables$errortable
 	}
@@ -2338,6 +2337,8 @@ amount_dist <- function(clicks, settings){
 	improvements2 <- improvement_barcharts(agg, settings, ispercent=FALSE, country=country)
 	improvements <- c(improvements, improvements2)
 
+	#TODO: fix y-axis. (See 1366633701TranslateRUru)
+
 	base <- barchart(freq ~ amountsource, data=agg3, horizontal=FALSE, 
 		col=cols, main=paste("Donations per amountsource for", country), origin=0,  groups=val, beside=TRUE,
 		auto.key=list(space="bottom", cex=2, points=FALSE, rectangles=FALSE, col=cols))
@@ -2978,12 +2979,6 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 ###############
 
 
-if(issample){
-	oneForm <- read.delim("./sample/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
-}else{
-	oneForm <- read.delim("./data/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
-}
-
 if(isold){
 	TLBVVCL <- read.delim("./data/TLBVVCL.tsv", quote="", na.strings = "", strip.white=TRUE)
 	TLBVVCL[c("split.on.country", "split.on.language")][is.na(TLBVVCL[c("split.on.country", "split.on.language")])] <- FALSE
@@ -2993,6 +2988,13 @@ if(isold){
 	TLBVVCL <- data.frame(apply(TLBVVCL, c(1,2), function(x){gsub(".TRUE", TRUE, x)}))
 	TLBVVCL$link <- NULL
 }else{
+
+	if(issample){
+		oneForm <- read.delim("./sample/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
+	}else{
+		oneForm <- read.delim("./data/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
+	}
+
 	oneForm <- oneForm[rowSums(is.na(oneForm)) != ncol(oneForm),] #snippet from http://stackoverflow.com/questions/6437164/removing-empty-rows-of-a-data-file-in-r
 	TBVD <- oneForm[c("test_id", 'Banner','Variable', 'Description', 'Description')]
 	TBVD['split.on.country'] <- FALSE
@@ -3041,12 +3043,11 @@ hackish_flag <- args[2]
 if(!is.na(tid)){
 	print(paste('crunching test', tid))
 	tid <- as.character(tid)
-	towrite <- TRUE
 	if(!is.na(hackish_flag) & as.character(hackish_flag) == "NOWRITE"){
 		towrite <- FALSE
 		print("Skipping graphs")
 	}
-	rTemp <- allreport(testid=tid, write=towrite, showerror=TRUE)	
+	rTemp <- allreport(testid=tid, write=towrite, showerror=TRUE)
 }else{
 	#rTemp <- allreport(write=TRUE)
 	print("script loaded")
@@ -3058,4 +3059,3 @@ if(!is.na(tid)){
 ### Run this to use the sample data
 
 #rTemp <- allreport(write=TRUE, sample=TRUE, showerror=TRUE)
-
