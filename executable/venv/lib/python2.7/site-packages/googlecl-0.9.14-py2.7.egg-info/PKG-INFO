@@ -1,0 +1,19 @@
+Metadata-Version: 1.1
+Name: googlecl
+Version: 0.9.14
+Summary: Use (some) Google services from the command line
+Home-page: http://code.google.com/p/googlecl
+Author: Tom H. Miller
+Author-email: tom.h.miller@gmail.com
+License: Apache Software License
+Description: The Google Data APIs allow programmatic access to
+        various Google services.  This package wraps a subset of those APIs into a
+        command-line tool that makes it easy to do things like posting to a Blogger
+        blog, uploading files to Picasa, or editing a Google Docs file.
+Platform: UNKNOWN
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: Environment :: Console
+Classifier: Development Status :: 4 - Beta
+Classifier: Operating System :: POSIX
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: End Users/Desktop

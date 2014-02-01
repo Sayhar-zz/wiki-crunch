@@ -435,7 +435,7 @@ splitOnLanguage <- function(LBVCL){
 }
 
 isJustBannerTest <- function(LBV){
-	if(! "landing" %in% colnames(df)){
+	if(! "landing" %in% colnames(LBV)){
 		return(TRUE)
 	}	
 	if(all(is.na(LBV$landing))){
@@ -832,7 +832,6 @@ onetestid <- function(t, metatable, errortable, write, con, bigmem, sample){
 		b <- dbGetQuery(con, paste0("SELECT * from banners where test_id = '", t,"'"))
 		l <- dbGetQuery(con, paste0("SELECT * from landings where test_id = '", t, "'"))
 	}
-
 	if(nrow(c) < 1){
 		errortable <- addOrUpdateErrorTable(errortable, c(t, "", "","YY", 'yy', 'no clicks'))
 		return( list(metatable=metatable, errortable=errortable))
@@ -885,8 +884,7 @@ onetestid <- function(t, metatable, errortable, write, con, bigmem, sample){
 		LBVCL <- subset(LBVVCL, variable == var)
 		#urlvar <- unique(LBVCL$variable.for.url)[1]
 		urlvar <- unique(LBVCL$variable)[1]
-			
-		
+	
 		if(nrow(c) < 1 || nrow(b) < 1){
 			errortable <- addOrUpdateErrorTable(errortable, c(t, var, "","YY", 'yy', 'no clicks (or possibly banners)'))
 			next
@@ -900,6 +898,7 @@ onetestid <- function(t, metatable, errortable, write, con, bigmem, sample){
 			
 			
 		#}
+
 		tables <- forCountryLanguage(c, b, l, splitOnCountry(LBVCL), splitOnLanguage(LBVCL), metatable, errortable, LBVCL, theseshots, t, testname, write)		
 		metatable <- tables$metatable
 		errortable <- tables$errortable
@@ -2339,6 +2338,7 @@ amount_dist <- function(clicks, settings){
 	improvements <- c(improvements, improvements2)
 
 	#TODO: fix y-axis. (See 1366633701TranslateRUru)
+
 	base <- barchart(freq ~ amountsource, data=agg3, horizontal=FALSE, 
 		col=cols, main=paste("Donations per amountsource for", country), origin=0,  groups=val, beside=TRUE,
 		auto.key=list(space="bottom", cex=2, points=FALSE, rectangles=FALSE, col=cols))
@@ -2979,8 +2979,6 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 ###############
 
 
-
-
 if(isold){
 	TLBVVCL <- read.delim("./data/TLBVVCL.tsv", quote="", na.strings = "", strip.white=TRUE)
 	TLBVVCL[c("split.on.country", "split.on.language")][is.na(TLBVVCL[c("split.on.country", "split.on.language")])] <- FALSE
@@ -2990,8 +2988,9 @@ if(isold){
 	TLBVVCL <- data.frame(apply(TLBVVCL, c(1,2), function(x){gsub(".TRUE", TRUE, x)}))
 	TLBVVCL$link <- NULL
 }else{
+
 	if(issample){
-	oneForm <- read.delim("./sample/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
+		oneForm <- read.delim("./sample/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
 	}else{
 		oneForm <- read.delim("./data/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
 	}
@@ -3060,5 +3059,3 @@ if(!is.na(tid)){
 ### Run this to use the sample data
 
 #rTemp <- allreport(write=TRUE, sample=TRUE, showerror=TRUE)
-
-#1385747903
