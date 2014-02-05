@@ -14,7 +14,7 @@
 #install.packages("getopt", lib="~/.R/library")
 ###SETTINGS:
 isshadow <- FALSE
-issample <- FALSE
+issample <- TRUE
 isold <- TRUE
 variable_in_testname <- TRUE
 towrite <- TRUE
@@ -221,18 +221,6 @@ prepareLanding <- function(LBV, landing, clicks){
 doReport <- function(imps, clicks, metatable, LBV, testname, testid, settings, country='YY', language='yy', write=FALSE, type='error'){
 	variable <- toString(unique(LBV$variable))
 
-	
-
-	if(type %in% c("banner", "combo")) {
-		settings$threshold <- settings$banner_threshold
-		settings$total_threshold <- settings$banner_total_threshold
-		settings$perminthreshold <- settings$banner_perminthreshold
-	}
-	if(type=="landing") {
-		settings$threshold <- settings$landing_threshold
-		settings$total_threshold <- settings$landing_total_threshold
-		settings$perminthreshold <- settings$landing_perminthreshold
-	}
 
 	instructions_and_data <- cleandata(imps, clicks, testid, LBV, settings, type)
 	reports <- list()
@@ -346,7 +334,7 @@ isbannernameException <- function(testid, impbanner, clickbanner){
 
 }
 
-isValidComboTest <- function(LBV){
+isValidBannerComboTest <- function(LBV){
 	#each landing page has a different banner
 	#(we'll use the impression stats for banner but also add the landing screenshot)
 	isvalid <- FALSE
@@ -362,6 +350,18 @@ isValidComboTest <- function(LBV){
 		isvalid <- TRUE
 	}
 	return(isvalid)
+}
+
+isValidLandingComboTest <- function(LBV){
+	#We'll use the impression stats for landing but also add the banner screenshots
+	#So every landing must only sync with 1 value
+	for(ulanding in unique(LBV$landing)){
+		lines <- subset(LBV, landing==ulanding)
+		if(length(unique(lines$value)) != 1){
+			return(FALSE)
+		}
+	}
+	return(TRUE)
 }
 
 comboToImpForm <- function(banners, LBV){
@@ -477,12 +477,13 @@ saveReport <- function(report, testid, testname, screenshots, errortable, settin
 	#if that banner has a landing page next to it in BV (aka if combo test)
 	#find the image source for that landing page
 	#and add it to the row of the screenshot table
-	if(report$type == 'combo' | 'landing' %in% names(BV)){
+	if('landing' %in% names(BV)){
 		for(i in 1:length(banners)){
 			BVlines <- subset(BV, banner==banners[i])
-	    	for(k in 1:length(BVlines)){
+	    	for(k in 1:nrow(BVlines)){
 	    		line <- BVlines[k,]
 	    		if(!is.na(line$landing)){
+	    			#we're dealing with a banner combo test
 	    			landingname <- line$landing
 	    			screenshotline <- subset(screenshots, banner.or.landing == landingname)
 	    			landingshot <- screenshotline$screenshot
@@ -490,6 +491,22 @@ saveReport <- function(report, testid, testname, screenshots, errortable, settin
 	    		}
 	    	}
 		}
+	}else if(report$type == 'combo'){
+		#We're dealing with a landing combo test
+		for(i in 1:length(banners)){
+			BVlines <- subset(BV, banner==banners[i])
+	    	for(k in 1:nrow(BVlines)){
+	    		line <- BVlines[k,]
+	    		if(!is.na(line$bannersreal)){
+	    			#we're dealing with a banner combo test
+	    			bannername <- line$bannersreal
+	    			screenshotline <- subset(screenshots, banner.or.landing == bannername)
+	    			bannershot <- screenshotline$screenshot
+	    			screenshots[screenshots$banner.or.landing == as.character(banners[i]),]$extra.screenshot.1 <- bannershot
+	    		}
+	    	}
+		}
+		
 	}
 	
 
@@ -768,24 +785,42 @@ readwritereport <- function(clicks, banners, landing, metatable, errortable, LBV
 			type <- 'banner'
 			imps <- banners
 			LBVCL$landing <- NULL
+			settings$threshold <- settings$banner_threshold
+			settings$total_threshold <- settings$banner_total_threshold
+			settings$perminthreshold <- settings$banner_perminthreshold
 		}
 		else if(isJustLandingTest(LBVCL)){
 			lic <- prepareLanding(LBVCL, landing, clicks)
 			LBVCL <- lic$LBV
 			imps <- lic$imps
 			clicks <- lic$clicks
-			type <- 'landing'			
+			type <- 'landing'
+			settings$threshold <- settings$landing_threshold
+			settings$total_threshold <- settings$landing_total_threshold
+			settings$perminthreshold <- settings$landing_perminthreshold			
 		}
-		else if(isValidComboTest(LBVCL)){
+		else if(isValidBannerComboTest(LBVCL)){
 			#is combo test
 			type <- 'combo'
 			imps <- banners
-		}else{
-			type <- 'error'
+			settings$threshold <- settings$banner_threshold
+			settings$total_threshold <- settings$banner_total_threshold
+			settings$perminthreshold <- settings$banner_perminthreshold
+		}else if(isValidLandingComboTest(LBVCL)){
+			type <- 'combo'
+			lic <- prepareLanding(LBVCL, landing, clicks)
+			LBV <- lic$LBV
+			LBV$bannersreal <- LBVCL$banner
+			LBVCL <- LBV
+			imps <- lic$imps
+			clicks <- lic$clicks
+			settings$threshold <- settings$landing_threshold
+			settings$total_threshold <- settings$landing_total_threshold
+			settings$perminthreshold <- settings$landing_perminthreshold
 		}
 
 		if(type %in% c('error')){
-			report <- c(list(skip=TRUE, why=c(testid, toString(LBVCL$var[1]), "",country, language, 'this should never happen. Neither just a landing nor banner test')))
+			report <- c(list(skip=TRUE, why=c(testid, toString(LBVCL$var[1]), "",country, language, 'Not a correct test type')))
 			reports <- list()
 			reports[[1]] <- report
 		}else{
@@ -822,10 +857,12 @@ onetestid <- function(t, metatable, errortable, write, con, bigmem, sample){
 		c <- con$c
 		b <- con$b
 		l <- con$l
-
-		c <- subset(c, test_id == t)
-		b <- subset(b, test_id == t)
-		l <- subset(l, test_id == t)
+		if(bigmem){
+			c <- subset(c, test_id == t)
+			b <- subset(b, test_id == t)
+			l <- subset(l, test_id == t)	
+		}
+		
 	}else{
 		
 		c <- dbGetQuery(con, paste0("SELECT * from clicks where test_id = '", t, "'"))
@@ -1371,7 +1408,7 @@ newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c
 	}
 	
 	
-	title <- paste(name, "over time.")
+	title <- paste("p and confdience interval over time")
 	sub <- paste("95% range at end: ", round(finalrow$implower * 100, 1), "% - ", round(finalrow$impupper * 100, 1), "%. Mean: ", round(finalmean * 100, 1), "%. \n ", sep="")
 	sub <- paste(sub , "Total banner impressions: ", (finalrow$Control_imps + finalrow$Variable_imps), "\n", sep="")
 	#sub <- paste(sub, "power at end: ", signif(finalrow$power,2))
@@ -1932,6 +1969,7 @@ amountshift <- function(donations, settings, agg=NA, absolute=FALSE){
 			colnames(row) <- c("amountsource", "change")
 			table <- rbind(table, row)
 		}
+		table$change <- unlist(table$change)
 		colnames(table) <- c("amountsource", paste0( v, "'s improvement (donations)"))
 		tables[[v]] <- table
 	}
@@ -2060,7 +2098,7 @@ graphreports <- function(cleaneddata, clicks, imps, settings, testname="test", t
 		extraGraphs <- c(extraGraphs, list(D, E))
 	}
 	extraGraphs <- c(extraGraphs, list(F, G, H, K))
-	extraGraphs <- list(blank=extraGraphs, amount=c(I,J))
+	extraGraphs <- list(blank=extraGraphs, Amount=c(I,J))
 
 	#impdiff_expected <- bannerCheck(dataCUM)
 	#extradata <- list(diff = impdiff_expected$diff, expected = impdiff_expected$expected, impshare = biggest_BI_share(imps))
@@ -2426,8 +2464,9 @@ improvement_barcharts <- function(agg, settings, ispercent=TRUE, country=NA){
 		i <- i + 1
 		title <- colnames(valtable)[2]
 		colnames(valtable)[2] <- "change"
-		valtable$change <- lapply(valtable$change, as.character)
-		valtable$change <- lapply(valtable$change, as.numeric)
+		#from factor to numeric:
+		valtable$change <- as.character(valtable$change)
+		valtable$change <- as.numeric(valtable$change)
 		tmp <- barchart(change ~ amountsource, data=valtable, 
 			horizontal=FALSE, main=paste(title, "in", country), col=cols[i],
 			ylab = ylabel,
@@ -2979,7 +3018,7 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 ###############
 
 
-if(isold){
+if(isold && !issample){
 	TLBVVCL <- read.delim("./data/TLBVVCL.tsv", quote="", na.strings = "", strip.white=TRUE)
 	TLBVVCL[c("split.on.country", "split.on.language")][is.na(TLBVVCL[c("split.on.country", "split.on.language")])] <- FALSE
 	screenshots <- read.delim("./data/screenshots.tsv", quote="", na.strings = "", stringsAsFactors=FALSE)
@@ -3058,4 +3097,4 @@ if(!is.na(tid)){
 ### IF YOU'VE DOWNLOADED THIS FROM GITHUB
 ### Run this to use the sample data
 
-#rTemp <- allreport(write=TRUE, sample=TRUE, showerror=TRUE)
+#rTemp <- allreport(write=TRUE, sample=TRUE, showerror=TRUE, testid="sample")
