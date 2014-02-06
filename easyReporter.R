@@ -16,7 +16,7 @@
 isshadow <- FALSE
 issample <- TRUE
 isold <- TRUE
-variable_in_testname <- TRUE
+variable_in_testname <- FALSE
 towrite <- TRUE
 
 library(xtable, quietly=TRUE)
@@ -766,8 +766,8 @@ readwritereport <- function(clicks, banners, landing, metatable, errortable, LBV
 					alpha = .05,
 					beta = .2,
 					xamounts =c(3,5,10,50),    #which values we should use for reportD
-					col_amounts=c(1,3,5,10,15,20,25,30,50,100),
-											   # which columns of amountsource to show
+					amount_threshold=.01,
+											   # show all amountsources that have frequency > X%
 					col_other = 50,			   #'other' is > and < this
 					paytypes=c("amazon", "cc", "paypal"),   # These payment types will be in ecom 		
 					digitsround = 3 			# how many digits to round
@@ -1900,11 +1900,8 @@ amountXtable <- function(name, banners, donations, settings){
 
 
 amount_dollars_shift <- function(donations, settings, agg=NA, absolute=FALSE){
-	
-	showamounts <- settings$col_amounts
 	showother <- settings$col_other
 
-	
 	suppressWarnings(if(is.na(agg)){
 		agg_country <- amount_sum_dist_crunch(donations, settings)	
 		agg <- agg_country$agg
@@ -1941,7 +1938,6 @@ amount_dollars_shift <- function(donations, settings, agg=NA, absolute=FALSE){
 }
 
 amountshift <- function(donations, settings, agg=NA, absolute=FALSE){
-	showamounts <- settings$col_amounts
 	showother <- settings$col_other
 
 	
@@ -2318,8 +2314,16 @@ paymentInsert <- function(donations, clicks){
 }
 
 
+simple_amountsource_finder <- function(agg, settings){
+	pct <- settings$amount_threshold
+	threshold <- sum(agg$freq)*pct
+	showamount <- unique(subset(agg, freq > threshold)$amountsource)
+	return(showamount)
+}
+
 amount_dist_crunch <- function(clicks, settings){
-	showamounts <- settings$col_amounts
+	
+	
 	showother <- settings$col_other
 	biggest_country <- tail(aggregate(amountsource ~ country, clicks, length),1)$country
 	clicks <- subset(clicks, country == biggest_country)
@@ -2329,6 +2333,8 @@ amount_dist_crunch <- function(clicks, settings){
 	agg <- aggregate(contribution_id ~ amountsource * val * country, c2, length); 
 	agg$freq <- agg$contribution_id; 
 	agg$contribution_id <- NULL; 
+	
+	showamounts <- simple_amountsource_finder(agg, settings)
 
 	bigname <- paste0("other>",showother)
 	smallname <- paste0("other<",showother)
@@ -2340,6 +2346,7 @@ amount_dist_crunch <- function(clicks, settings){
 	}else{
 		bigotheramount <- aggregate(freq~val, bigotheragg, sum)		
 		bigotheramount$amountsource <- bigname
+		bigotheramount$idx <- showother + 1
 	}
 	
 	if(nrow(smallotheragg) == 0){
@@ -2347,17 +2354,18 @@ amount_dist_crunch <- function(clicks, settings){
 	}else{
 		smallotheramount <- aggregate(freq~val, smallotheragg, sum)
 		smallotheramount$amountsource <- smallname
+		smallotheramount$idx <- showother - 1
 	}
 	
 	cleanagg <- subset(agg, amountsource %in% showamounts)
 	agg3 <- aggregate(freq ~ amountsource * val, cleanagg, sum)
-	
-	agg3 <- agg3[order(as.numeric(agg3$amountsource), decreasing=FALSE),]
+	agg3$idx <- agg3$amountsource
 	agg3$amountsource <- as.factor(agg3$amountsource)
-	order_ <- as.numeric(agg3$amountsource)
-	order_ <- c(order_, smallname, smallname, bigname, bigname)
 	agg3 <- rbind(agg3, smallotheramount)
 	agg3 <- rbind(agg3, bigotheramount)
+
+	agg3 <- agg3[order(agg3$idx, decreasing=FALSE),]
+
 	toreturn <- list(agg=agg3, country=biggest_country)
 	return(toreturn)
 }
@@ -2375,7 +2383,8 @@ amount_dist <- function(clicks, settings){
 	improvements2 <- improvement_barcharts(agg, settings, ispercent=FALSE, country=country)
 	improvements <- c(improvements, improvements2)
 
-	#TODO: fix y-axis. (See 1366633701TranslateRUru)
+	#get the barchart in the right order
+	agg3$amountsource <- reorder(agg3$amountsource, agg3$idx)
 
 	base <- barchart(freq ~ amountsource, data=agg3, horizontal=FALSE, 
 		col=cols, main=paste("Donations per amountsource for", country), origin=0,  groups=val, beside=TRUE,
@@ -2385,14 +2394,14 @@ amount_dist <- function(clicks, settings){
 }
 
 amount_sum_dist_crunch <- function(clicks, settings){
-	showamounts <- settings$col_amounts
+	
 	showother <- settings$col_other
 	biggest_country <- tail(aggregate(amountsource ~ country, clicks, length),1)$country
 	clicks <- subset(clicks, country == biggest_country)
 	c2 <- clicks[which(clicks$amount > 0),]
 
 	agg <- aggregate(amount ~ amountsource * val * country, c2, sum)
-
+	showamounts <- simple_amountsource_finder(agg, settings)
 	bigname <- paste0("other>",showother)
 	smallname <- paste0("other<",showother)
 	otheragg <- subset(agg, !(amountsource %in% showamounts))
@@ -2405,6 +2414,7 @@ amount_sum_dist_crunch <- function(clicks, settings){
 	}else{
 		bigotheramount <- aggregate(amount~val, bigotheragg, sum)		
 		bigotheramount$amountsource <- bigname
+		bigotheramount$idx <- showother + 1
 	}
 	
 	if(nrow(smallotheragg) == 0){
@@ -2412,17 +2422,18 @@ amount_sum_dist_crunch <- function(clicks, settings){
 	}else{
 		smallotheramount <- aggregate(amount~val, smallotheragg, sum)
 		smallotheramount$amountsource <- smallname
+		smallotheramount$idx <- showother - 1
 	}
 	
 	cleanagg <- subset(agg, amountsource %in% showamounts)
 	agg3 <- aggregate(amount ~ amountsource * val, cleanagg, sum)
 
-	agg3 <- agg3[order(as.numeric(agg3$amountsource), decreasing=FALSE),]
+	agg3$idx <- agg3$amountsource
 	agg3$amountsource <- as.factor(agg3$amountsource)
-	order_ <- as.numeric(agg3$amountsource)
-	order_ <- c(order_, smallname, smallname, bigname, bigname)
 	agg3 <- rbind(agg3, smallotheramount)
 	agg3 <- rbind(agg3, bigotheramount)
+
+	agg3 <- agg3[order(agg3$idx, decreasing=FALSE),]
 	toreturn <- list(agg=agg3, country=biggest_country)
 	return(toreturn)
 }
@@ -2439,6 +2450,10 @@ amount_sum_dist <- function(clicks, settings){
 	agg <- amount_dollars_shift(clicks, settings, agg=agg3, absolute=TRUE)
 	improvements2 <- improvement_barcharts(agg, settings, ispercent=FALSE, country=country)
 	improvements <- c(improvements, improvements2)
+
+	#get the barchart in the right order
+	agg3$amountsource <- reorder(agg3$amountsource, agg3$idx)
+
 	base <- barchart(amount ~ amountsource, data=agg3, horizontal=FALSE, 
 		col=cols, main=paste("$ per amountsource for", country), origin=0,  groups=val, beside=TRUE,
 		auto.key=list(space="bottom", cex=2, points=FALSE, rectangles=FALSE, col=cols))
