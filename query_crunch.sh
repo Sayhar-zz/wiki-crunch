@@ -9,14 +9,16 @@ echo 'downloading files'
 ./doc_downloader.sh
 echo 'writing SQL'
 cd helper
-./easyParse.py -t $1 --mysql
+./parseForm.py -t $1 --mysql
 echo 'querying db' &&
 cd .. &&
 cd ../output &&
-mysql < banners.sql &&
+mysql < tmpBanner.sql &&
 echo 'banners written' &&
-mysql < donors.sql &&
+mysql < tmpClick.sql &&
 echo 'clicks written' &&
+mysql < tmpLanding.sql &&
+echo 'landing written' &&
 cd ..  &&
 #you're at RBOX again
 echo 'crunching in R' &&

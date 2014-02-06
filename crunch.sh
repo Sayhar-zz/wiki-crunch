@@ -10,6 +10,7 @@ cd executable &&
 for f in ../report/$1*; do ./get_info.sh $1 > "$f"/info.txt; done
 cd ..
 
+
 cp -r report/$1* /srv/reports
 mkdir /srv/reports/allreports 2> /dev/null
 cp -r report/allreports/$1* /srv/reports/allreports/ &&
@@ -22,7 +23,7 @@ testnames=$(ls report | grep $1)
 #done
 for var in $testnames; 
 do
-	echo "URL: https://lutetium.wikimedia.org/reports/$var/show.html"
+	echo "URL: https://reports.frdev.wikimedia.org/reports/$var/"
 done
 
 echo "adding start/end time if needed"
@@ -31,3 +32,4 @@ source lenv/bin/activate &&
 cd helper &&
 python write_startend.py $1 &&
 python calendar_writer.py $1 > /dev/null
+
