@@ -6,7 +6,7 @@
 source lenv/bin/activate &&
 ./doc_downloader.sh &&
 cd helper &&
-./easyParse.py &&
+./parseForm.py &&
 alltids=$(./alltids.py) &&
 cd .. && #executable
 cd .. && #RBOX
