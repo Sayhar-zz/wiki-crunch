@@ -23,7 +23,7 @@ testnames=$(ls report | grep $1)
 #done
 for var in $testnames; 
 do
-	echo "URL: https://lutetium.wikimedia.org/reports/$var/show.html"
+	echo "URL: https://reports.frdev.wikimedia.org/reports/$var/"
 done
 
 echo "adding start/end time if needed"
