@@ -541,17 +541,18 @@ saveReport <- function(report, testid, testname, screenshots, errortable, settin
 	}
 
 	#writing an html file with links to all the tests
-	colnames(report$A)[5] <- "donations/1000 impressions"
-	colnames(report$A)[6] <- "$/1000 impressions"
-	colnames(report$A)[8] <- "amount20/1000bi"
+	colnames(report$A)[4] <- "don/K bi"
+	colnames(report$A)[5] <- "$/K bi"
+	colnames(report$A)[8] <- "amount20/K bi"
 	
 	#Note to self - this probably works instead
 	#report$A[6] <- paste0("$", prettyNum(as.numeric(report$A[6]), big.mark=",", scientific=FALSE) )})
-	
-	report$A[2] <- lapply(report$A[2], function(x){ x<-paste0(    prettyNum(as.numeric(x),big.mark=",",scientific=FALSE))})
+
+	report$A[2] <- lapply(report$A[2], function(x){ x<-paste0(   prettyNum(as.numeric(x),big.mark=",",scientific=FALSE))})
+	report$A[6] <- lapply(report$A[6], function(x){ x<-paste0(   prettyNum(as.numeric(x),big.mark=",",scientific=FALSE))})
 	report$A[3] <- lapply(report$A[3], function(x){ x<-paste0(   prettyNum(as.numeric(x),big.mark=",",scientific=FALSE))})
-	report$A[4] <- lapply(report$A[4], function(x){ x<-paste0(   prettyNum(as.numeric(x),big.mark=",",scientific=FALSE))})
-	report$A[6] <- lapply(report$A[6], function(x){ x<-paste0("$",    prettyNum(as.numeric(x),big.mark=",",scientific=FALSE))})
+	report$A[,4] <- round(as.numeric(report$A[,4]), digits=roundby)
+	report$A[5] <- lapply(report$A[5], function(x){ x<-paste0("$",    prettyNum(as.numeric(x),big.mark=",",scientific=FALSE))})
 	report$A[7] <- lapply(report$A[7], function(x){ x<-paste0("$", prettyNum(round(as.numeric(x), digits=2), big.mark=",", scientific=FALSE) )})
 	report$A[8] <- lapply(report$A[8], function(x){ x<-paste0("$", prettyNum(as.numeric(x), big.mark=",", scientific=FALSE) )})
 	report$A[9] <- lapply(report$A[9], function(x){ x<-paste0("$", prettyNum(round(as.numeric(x), digits=2), big.mark=",", scientific=FALSE) )})
@@ -588,7 +589,7 @@ saveReport <- function(report, testid, testname, screenshots, errortable, settin
 	colnames(report$B)[3] <- "Donation increase / 1000bi"
 	colnames(report$B)[4] <- "$/impression"
 	colnames(report$B)[5] <- "Dollar increase / 1000bi"
-	colnames(report$B)[6] <- "% impressions"
+	colnames(report$B)[6] <- "Impression Anomaly"
 	#a20diff
 	colnames(report$B)[8] <- "p"
 	colnames(report$B)[9] <- "power"
@@ -759,7 +760,7 @@ readwritereport <- function(clicks, banners, landing, metatable, errortable, LBV
 					mask_fraction=1/15,        #used to see if a country should be put in the other category or not
 					etc_country="other",	   #name for "other" country category
 					unknown_country="unknown", #name for unknown countries
-					cols = c('purple4', "orangered", "lightseagreen", "steelblue1", "slategrey"),
+					cols = c('purple4', "orangered", "lightseagreen", "steelblue1","rosybrown", "cyan4", "slategrey"),
 												#colors
 					landing_perminthreshold=20, #test needs at least 1 minute with at least X impressions
 					banner_perminthreshold=500,
@@ -770,7 +771,8 @@ readwritereport <- function(clicks, banners, landing, metatable, errortable, LBV
 											   # show all amountsources that have frequency > X%
 					col_other = 50,			   #'other' is > and < this
 					paytypes=c("amazon", "cc", "paypal"),   # These payment types will be in ecom 		
-					digitsround = 3 			# how many digits to round
+					digitsround = 3, 			# how many digits to round
+					typeface_size = 1.5 		#How big the type on graphs should be
 					)
 
 
@@ -1353,18 +1355,19 @@ enrichCData <- function(cumdata, alpha, beta){
 	cumdata <- rangecalc(cumdata, alpha, beta)
 	cumdata['n'] <- ceiling(setNindata(cumdata, alpha, beta))
 	cumdata['p'] <- apply(cumdata, 1, pfinder)
-	
 	return(cumdata)
 }
 
 
 newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c(-.5,1.1), name="",controlname="B", variablename="A", extrasub=FALSE, xaxisistime=FALSE){
+	#aka pamplona graph
 	#takes in cumulative data. 
 	#finalimp needs to be in "1.XX" form
 	#pmin aka plimit is the number of rows that p < .05 that you skip before changing the yscale for percentages. A bigger number means a tighter range. Unless the number is > the number of rows that p < .05, in which case it is ignored. 
 	alpha <- settings$alpha
 	beta <- settings$beta
 	cols <- settings$cols
+	fs <- settings$typeface_size
 	if(! isEnriched(cumdata)) {cumdata <- enrichCData(cumdata, alpha, beta)}
 	    
 	if(!is.na(timespan)){
@@ -1408,8 +1411,9 @@ newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c
 	}
 	
 	
-	title <- paste("p and confdience interval over time")
-	sub <- paste("95% range at end: ", round(finalrow$implower * 100, 1), "% - ", round(finalrow$impupper * 100, 1), "%. Mean: ", round(finalmean * 100, 1), "%. \n ", sep="")
+	title <- paste("p and confidence interval over time.")
+	sub <- paste(variablename, "is winning.\n")
+	sub <- paste(sub, "95% range at end: ", round(finalrow$implower * 100, 1), "% - ", round(finalrow$impupper * 100, 1), "%. Mean: ", round(finalmean * 100, 1), "%. \n ", sep="")
 	sub <- paste(sub , "Total banner impressions: ", (finalrow$Control_imps + finalrow$Variable_imps), "\n", sep="")
 	#sub <- paste(sub, "power at end: ", signif(finalrow$power,2))
 	if(extrasub != FALSE){
@@ -1420,10 +1424,10 @@ newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c
 	#}else if (finalrow$impupper < 0){
 	#	title <- paste0(title, controlname)
 	#}else{
-		title <- paste(title, variablename, "is winning")
+		
 	#}
 	
-	linenames <- c("Upper bound of winning margin","P-value over time", "lower bound of winning margin", "Winning margin at end of sample")
+	linenames <- c("Upper bound of winning margin","p-value over time", "lower bound of winning margin", "First 15 donations", "p-value confidence threshold")
 	if(finalimp != "none"){
 		linenames <- c(linenames, "'True' winning margin from full data set")		
 		sub <- paste(sub, "'True' margin: ", round(finalimp * 100, 1), "%", sep="")
@@ -1434,12 +1438,12 @@ newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c
 		graphthis <- xyplot( impupper*(sizefactor / scalefactor) + p + implower*(sizefactor / scalefactor) ~ minute, 
 	        data=cumdata, 
 			auto.key=list(text=linenames,
-			space = "bottom", col=cols, points=FALSE), 
-			xlab=list(cex=2,label='Time'), 
-			ylab=list(cex=1.5,label=paste('p-value (', cols[2], ")", sep=""), vjust=1),
-			ylab.right = list(cex=1.5,label="'Winning' banner's relative success", vjust=-2),
-			main=list(cex=2,label=title), 
-			xlab.top=list(cex=2,label=sub),
+			space = "bottom", col=cols, points=FALSE, cex=fs), 
+			xlab=list(cex=fs,label='Time'), 
+			ylab=list(cex=fs,label=paste('p-value (', cols[2], ")", sep=""), vjust=1),
+			ylab.right = list(cex=fs,label="'Winning' banner's relative success", vjust=-2),
+			main=list(label=title, cex=fs), 
+			xlab.top=list(cex=fs,label=sub),
 			ylim=ylimit, 
 			lwd=1.5,
 			col=cols,
@@ -1447,21 +1451,21 @@ newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c
 		    scales=list( 
 		        x=list(alternating=FALSE), 
 		        y=list(relation="free", rot=0),
-		        cex=1.5), 
+		        cex=fs), 
 			yscale.component=myyscale.component, 
-			par.settings=list(layout.widths=list(right.padding=6)),    
+			par.settings=list(layout.widths=list(right.padding=10)),    
 		)
 
 		}else{
 			graphthis <- xyplot( impupper*(sizefactor / scalefactor) + p + implower*(sizefactor / scalefactor) ~ (Control_imps + Variable_imps), 
 		        data=cumdata, 
 				auto.key=list(text=linenames,
-				space = "bottom", col=cols, points=FALSE), 
-				xlab=list(cex=2,label='Total Banner Impressions'), 
-				ylab=list(cex=1.5,label=paste('p-value (', cols[2], ")", sep=""), vjust=1),
-				ylab.right = list(cex=1.5,label="'Winning' banner's relative success", vjust=-2),
-				main=list(cex=2,label=title), 
-				xlab.top=list(cex=2,label=sub),
+				space = "bottom", col=cols, points=FALSE, cex=fs), 
+				xlab=list(cex=fs,label='Total Banner Impressions'), 
+				ylab=list(cex=fs,label=paste('p-value (', cols[2], ")", sep=""), vjust=1),
+				ylab.right = list(cex=fs, label="'Winning' banner's relative success", vjust=-2),
+				main=list(cex=fs,label=title), 
+				xlab.top=list(cex=fs,label=sub),
 				ylim=ylimit, 
 				lwd=1.5,
 				col=cols,
@@ -1469,19 +1473,19 @@ newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c
 			    scales=list( 
 			        x=list(alternating=FALSE), 
 			        y=list(relation="free", rot=0),
-			        cex=1.5), 
+			        cex=fs), 
 				yscale.component=myyscale.component, 
-				par.settings=list(layout.widths=list(right.padding=6)),    
+				par.settings=list(layout.widths=list(right.padding=10)),
 			)
 		}
 	
 
-	graphthis <- graphthis  + layer(
-			panel.abline(
-				h=finalmean*(sizefactor/scalefactor), 
-				col=color, lty="dotted", lwd=3),
-			data=list(scalefactor=scalefactor, sizefactor=sizefactor, finalmean=finalmean, color=cols[4])
-	)
+	#graphthis <- graphthis  + layer(
+	#		panel.abline(
+	#			h=finalmean*(sizefactor/scalefactor), 
+	#			col=color, lty="dotted", lwd=3),
+	#		data=list(scalefactor=scalefactor, sizefactor=sizefactor, finalmean=finalmean, color=cols[4])
+	#)
 	
 	#if(ptime >=0){
 	#	graphthis <- graphthis + layer(panel.abline(lty="dotted", col = color,  v=vee), data=list(vee=ptime, color=cols[2]))
@@ -1491,10 +1495,12 @@ newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c
 		realfinal <- finalimp *(sizefactor/scalefactor)
 		graphthis <- graphthis + layer(panel.abline(lwd=3,lty="dotted", col = color,  h=realfinal), data=list(realfinal=realfinal, color= cols[5]))
 	}
-	graphthis <- graphthis + layer(panel.abline(lwd=3,lty="solid", col = color,  h=0), data=list(color=cols[5]))
-	graphthis <- graphthis + layer(panel.abline(lwd=3,lty="solid", col = color,  v=0), data=list(color=cols[5]))
-	graphthis <- graphthis + layer(panel.abline(lwd=3,lty="dotted", col = color,  h=.05), data=list(color=cols[2]))
+	
 	graphthis <- graphthis + layer(panel.abline(lwd=3,lty="solid", col = color,  v=imps), data=list(color=cols[4],imps=fifteentime))
+	graphthis <- graphthis + layer(panel.abline(lwd=3,lty="dotted", col = color,  h=.05), data=list(color=cols[5]))
+	graphthis <- graphthis + layer(panel.abline(lwd=3,lty="solid", col = color,  h=0), data=list(color=cols[7]))
+	graphthis <- graphthis + layer(panel.abline(lwd=3,lty="solid", col = color,  v=0), data=list(color=cols[7]))
+
 	return(graphthis) 
 }
 
@@ -1837,7 +1843,7 @@ onelineResult <- function(name, clicks, donations, banners, settings){
 	#	l2[[payment_name]] <- conversion_value
 	#}
 
-	line <- data.frame(name=name,donations=totaldonations, clicks=totalclicks, impressions=totalimpressions, donationsPer1000BI=donationsPer1000BI, dollarsPer1000BI=dollarsPer1000BI, amount=totalamount, amount20=amount20, avgDonation=avgDonation,  avg20=avg20, median=median, max=max, conversionrate=conversionrate, mode=mode_a, mode_s=mode_as)
+	line <- data.frame(name=name,donations=totaldonations, impressions=totalimpressions, donationsPer1000BI=donationsPer1000BI, dollarsPer1000BI=dollarsPer1000BI, clicks=totalclicks, amount=totalamount, amount20=amount20, avgDonation=avgDonation,  avg20=avg20, median=median, max=max, conversionrate=conversionrate, mode=mode_a, mode_s=mode_as)
 	line <- merge(line, conversion)
 	return(line)
 }
@@ -2058,7 +2064,7 @@ graphreports <- function(cleaneddata, clicks, imps, settings, testname="test", t
 	A <- one
 	B <- clicks_over_time(cleaneddata$clicks, settings, timespan=timespan, type='clicks')
 	C <- clicks_over_time(cleaneddata$clicks, settings, timespan=timespan, type='donations')
-	F <- imps_per_country(country_imps, type=type)
+	F <- imps_per_country(country_imps, settings, type=type)
 	G <- banners_over_time(cleaneddata$imps, show_all_settings, timespan=NA, type=type, per_country=FALSE)
 	H <- clicks_over_time(country_clicks, show_all_settings, timespan=NA, type='donations', per_country=FALSE)
 	
@@ -2133,6 +2139,8 @@ graph_timespan <- function(banners, settings){
 banners_over_time <- function(banners, settings, timespan=NA, type='banner', per_country=FALSE){
 	threshold <- settings$threshold
 	numdots <- settings$numdots
+	fs <- settings$typeface_size
+
 	sub <- ""
 	if(is.na(timespan)){
 		timespan <- graph_timespan(banners, settings)
@@ -2178,11 +2186,12 @@ banners_over_time <- function(banners, settings, timespan=NA, type='banner', per
 			 ylim=ylim,
 			 groups=val,
 			 par.settings = ps,
-			 ylab=ylab,
 			 auto.key=key,
-			 xlab=xlab,
-			 xlab.top=sub,
-			 main=main
+			 ylab=list(ylab, cex=fs),
+	 		 xlab=list(xlab, cex=fs),
+			 main=list(main, cex=fs),
+			 scales=list(cex=fs),
+			 xlab.top=list(title=sub, cex=fs),
 			 )	
 		}else{
 			graph <- xyplot(imps ~ newtime | country, nndata,
@@ -2190,11 +2199,12 @@ banners_over_time <- function(banners, settings, timespan=NA, type='banner', per
 			 ylim=ylim,
 			 groups=val,
 			 par.settings = ps,
-			 ylab=ylab, 
 			 auto.key=key,
-			 xlab=xlab,
-			 xlab.top=sub,
-			 main=paste(main, "per country"),
+			 ylab=list(ylab, cex=fs),
+	 		 xlab=list(xlab, cex=fs),
+			 main=list(paste(main, "per country"), cex=fs),
+			 scales=list(cex=fs),
+			 xlab.top=list(title=sub, cex=fs),
 			 )	
 		}
 	
@@ -2205,6 +2215,7 @@ banners_over_time <- function(banners, settings, timespan=NA, type='banner', per
 clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_country=FALSE){
 	numdots <- settings$numdots
 	threshold <- settings$donate_threshold
+	fs <- settings$typeface_size
 	if(type=="clicks"){threshold <- settings$landing_threshold}
 
 	if(type=="clicks"){
@@ -2264,7 +2275,7 @@ clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_c
 	ylim = c(0, NA)
 	ps = simpleTheme(col=c("steelblue","tomato1",'springgreen', 'violet', 'brown4'),pch=20, cex=1.3, lwd=2)
 	ylab = "Clicks"
-	key = list(space="bottom", cex=1.1, points=FALSE, rectangles=TRUE)
+	key = list(space="bottom", cex=fs, points=FALSE, rectangles=TRUE)
 	xlab = paste("Time (UTC), one dot per", minperdot, "minutes")
 	sub = paste(sub, "Though one color should consistently do better than the other, they should rise and fall together.")
 	main = paste(type, "over time")
@@ -2278,10 +2289,12 @@ clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_c
 		 ylim=ylim,
 		 groups=val,
 		 par.settings = ps,
-		 ylab=ylab,
 		 auto.key=key,
-		 xlab=xlab,
-		 main=main,
+ 		 ylab=list(ylab, cex=fs),
+ 		 xlab=list(xlab, cex=fs),
+		 main=list(main, cex=fs),
+		 scales=list(cex=fs)
+
 		 )
 	}else{
 		graph <- xyplot(imps ~ newtime | country, nndata,
@@ -2289,10 +2302,11 @@ clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_c
 		 ylim=ylim,
 		 groups=val,
 		 par.settings = ps,
-		 ylab=ylab,
 		 auto.key=key,
-		 xlab=xlab,
-		 main=paste(main, "per country"),
+		 ylab=list(ylab, cex=fs),
+ 		 xlab=list(xlab, cex=fs),
+		 main=list(paste(main, "per country"), cex=fs),
+		 scales=list(cex=fs)
 		 )	
 	}
 	
@@ -2375,6 +2389,7 @@ amount_dist <- function(clicks, settings){
 	agg3 <- agg_country$agg
 	country <- agg_country$country
 	cols <- settings$cols
+	fs <- settings$typeface_size
 	
 	agg <- amountshift(clicks, settings, agg=agg3, absolute=FALSE)
 
@@ -2389,8 +2404,15 @@ amount_dist <- function(clicks, settings){
 
 
 	base <- barchart(freq ~ amountsource, data=agg3, horizontal=FALSE, 
-		col=cols, main=paste("Donations per amountsource for", country), origin=0,  groups=val, beside=TRUE,
-		auto.key=list(space="bottom", cex=2, points=FALSE, rectangles=FALSE, col=cols))
+		col=cols, 
+		main=list(paste("Donations per amountsource for", country), cex=fs), 
+		xlab = list(cex=fs),
+		ylab = list(cex=fs),
+		origin=0, 
+		groups=val, 
+		beside=TRUE,
+		scales=list(cex=fs),
+		auto.key=list(space="bottom", cex=fs, points=FALSE, rectangles=FALSE, col=cols))
 	toreturn <- list(base=base, improvements=improvements)
 	return(toreturn)
 }
@@ -2442,6 +2464,8 @@ amount_sum_dist_crunch <- function(clicks, settings){
 
 amount_sum_dist <- function(clicks, settings){
 	cols <- settings$cols
+	fs <- settings$typeface_size
+
 	agg_country <- amount_sum_dist_crunch(clicks, settings)
 	agg3 <- agg_country$agg
 	country <- agg_country$country
@@ -2457,7 +2481,12 @@ amount_sum_dist <- function(clicks, settings){
 	agg3$amountsource <- reorder(agg3$amountsource, agg3$idx)
 
 	base <- barchart(amount ~ amountsource, data=agg3, horizontal=FALSE, 
-		col=cols, main=paste("$ per amountsource for", country), origin=0,  groups=val, beside=TRUE,
+		col=cols, 
+		main=list(paste("$ per amountsource for", country), cex=fs),
+		scales=list(cex=fs),
+		xlab = list(cex=fs),
+		ylab = list(cex=fs),
+		origin=0,  groups=val, beside=TRUE,
 		auto.key=list(space="bottom", cex=2, points=FALSE, rectangles=FALSE, col=cols))
 
 	toreturn <- list(base=base, improvements=improvements)
@@ -2466,6 +2495,8 @@ amount_sum_dist <- function(clicks, settings){
 
 improvement_barcharts <- function(agg, settings, ispercent=TRUE, country=NA){
 	cols <- settings$cols
+	fs <- settings$typeface_size
+
 	improvements <- list()
 
 	if(ispercent){
@@ -2485,9 +2516,13 @@ improvement_barcharts <- function(agg, settings, ispercent=TRUE, country=NA){
 		valtable$change <- as.character(valtable$change)
 		valtable$change <- as.numeric(valtable$change)
 		tmp <- barchart(change ~ amountsource, data=valtable, 
-			horizontal=FALSE, main=paste(title, "in", country), col=cols[i],
-			ylab = ylabel,
-			auto.key=list(space="bottom", cex=2, points=FALSE, rectangles=FALSE, col=cols),
+			horizontal=FALSE, 
+			main=list(paste(title, "in", country), cex=fs),
+			scales=list(cex=fs),
+			xlab = list(cex=fs),
+			col=cols[i],
+			ylab = list(ylabel, cex=fs),
+			auto.key=list(space="bottom", cex=fs, points=FALSE, rectangles=FALSE, col=cols),
 			panel=function(x, y,...){
             panel.barchart(x,y,origin = 0,...);
             panel.abline(h=0,...);
@@ -2500,17 +2535,19 @@ improvement_barcharts <- function(agg, settings, ispercent=TRUE, country=NA){
 }
 
 
-imps_per_country <- function(unpolished_imps, type="banner"){
+imps_per_country <- function(unpolished_imps, settings, type="banner"){
 	agg <- aggregate(imps ~ val * country, unpolished_imps, sum)
+	fs <- settings$typeface_size
 	graph <- barchart(imps ~ country,
         groups=val,
 		data=agg,
 		par.settings = simpleTheme(col=c("blue","red",'green', 'purple', 'brown'),pch=20, cex=1.3, lwd=2),
-		auto.key=list(space="bottom", cex=1.1, points=FALSE, rectangles=TRUE),
+		auto.key=list(space="bottom", cex=fs, points=FALSE, rectangles=TRUE),
 		ylim=c(0, max(agg$imps)*1.1), 
-		ylab=paste(type, "impressions"),
-		main=paste(type, "impressions for each variation and country"),
-		xlab.top="Each couple should be equal"
+		ylab=list(paste(type, "impressions"), cex=fs),
+		main=list(paste(type, "impressions for each variation and country"), cex=fs),
+		scales=list(cex=fs),
+		xlab.top=list("Each couple should be equal", cex=fs),
 		)
 	return(graph)
 }
