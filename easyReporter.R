@@ -14,8 +14,8 @@
 #install.packages("getopt", lib="~/.R/library")
 ###SETTINGS:
 isshadow <- FALSE
-issample <- TRUE
-isold <- TRUE
+issample <- FALSE
+isold <- FALSE
 variable_in_testname <- FALSE
 towrite <- TRUE
 
