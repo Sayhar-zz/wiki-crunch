@@ -14,8 +14,8 @@
 #install.packages("getopt", lib="~/.R/library")
 ###SETTINGS:
 isshadow <- FALSE
-issample <- FALSE
-isold <- FALSE
+issample <- TRUE
+isold <- TRUE
 variable_in_testname <- FALSE
 towrite <- TRUE
 
@@ -222,7 +222,9 @@ doReport <- function(imps, clicks, metatable, LBV, testname, testid, settings, c
 	variable <- toString(unique(LBV$variable))
 
 
-	instructions_and_data <- cleandata(imps, clicks, testid, LBV, settings, type)
+	instructions_and_data <- cleandata(imps, clicks, testid, LBV, settings, country, language, type)
+	country <- instructions_and_data$country
+	language <- instructions_and_data$language
 	reports <- list()
 
 	if(instructions_and_data$skip){
@@ -239,7 +241,7 @@ doReport <- function(imps, clicks, metatable, LBV, testname, testid, settings, c
 		clicks <- instructions_and_data$data$clicks
 		donations <- instructions_and_data$data$donations
 		numtypes <- instructions_and_data$numtypes
-
+		
 		multiple <- 0
 		#
 		if(numtypes > 2){
@@ -1634,7 +1636,7 @@ destroySmallDefects <- function(testid, icb, settings){
 	return(list(skip=FALSE, imps=imps, clicks=clicks, BV=BV))
 }
 
-standardizeToBV <- function(icb, country, language){
+standardizeToBV <- function(icb){
 	imps <- icb$imps
 	clicks <- icb$clicks
 	BV <- icb$BV
@@ -1694,6 +1696,43 @@ standardizeToBV <- function(icb, country, language){
 
 	return(list(skip=FALSE, imps=imps, clicks=clicks, BV=BV))
 }
+
+
+find_country_lang <- function(icb, country, language){
+	imps <- icb$imps
+	clicks <- icb$clicks
+	BV <- icb$BV
+
+	if(country == "YY"){
+		#do smart things to replace it later
+		uu <- unique(imps$country)
+		idx <- which(is.na(uu))
+		if(length(idx) > 1){
+			uu[idx] <- NULL
+		}
+		if(length(uu) == 1){
+			#If there's exactly 1 country (except NA's)
+			country <- uu[1]
+		}
+	}
+
+	if(language == "YY"){
+		uu <- unique(imps$language)
+		idx <- which(is.na(uu))
+		if(length(idx) > 1){
+			uu[idx] <- NULL
+		}
+		if(length(uu) == 1){
+			#If there's exactly 1 language (except NA's)
+			language <- uu[1]
+		}
+	}
+	toreturn <- list(country=country, language=language)
+	return(toreturn)
+}
+
+
+
 
 mask_some_countries <- function(icb, settings){
 	#import relevant settings
@@ -2603,7 +2642,7 @@ findmakepath <- function(subfolder="", testname, multiple="0"){
 
 
 
-cleandata <- function(imps, clicks, testid, BV, settings, type="banner"){
+cleandata <- function(imps, clicks, testid, BV, settings, country, language, type="banner"){
 	#A. Get the data ready
 	#Part 1: Subset and clean the testdata
 	icb <- prepare(imps, clicks, BV, testid)
@@ -2616,11 +2655,15 @@ cleandata <- function(imps, clicks, testid, BV, settings, type="banner"){
 		return(icb)
 	}
 	
-	icb <- standardizeToBV(icb, country, language)
+	icb <- standardizeToBV(icb)
 	if(icb$skip){
 		return(icb)
 	}
 	
+	country_lang <- find_country_lang(icb, country, language)
+	country <- country_lang$country
+	lang <- country_lang$lang
+
 	icb <- mask_some_countries(icb, settings)
 	if(icb$skip){
 		return(icb)
@@ -2635,7 +2678,7 @@ cleandata <- function(imps, clicks, testid, BV, settings, type="banner"){
 	
 	#How banner values are there?:
 	numtypes <- length(unique(donations$val))
-	toreturn <- list(numtypes=numtypes, skip=FALSE)
+	toreturn <- list(numtypes=numtypes, skip=FALSE, lang=lang, country=country)
 	
 	if(numtypes < 2){
 		#Easy to deal with - just skip
