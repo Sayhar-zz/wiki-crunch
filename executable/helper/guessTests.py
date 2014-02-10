@@ -42,10 +42,8 @@ def matches(name, amount, latestname, latestamnt, thistestname, thistest):
 			return True
 	return False	
 
-def write_to_file(testname, test):
-	#actually write to cloud
-	
-	def find_val(bannername, testname, varname):
+
+def find_val(bannername, testname, varname):
 		if(bannername[-5] == "_"):
 			bannername = bannername[0:-5]
 
@@ -56,14 +54,18 @@ def write_to_file(testname, test):
 			possible = bannername[bannername.find(varname) + len(varname):].strip("_")
 		return possible
 
+
+def write_to_file(testname, test):
+	#actually write to cloud
 	#with open('../outfile.tsv', 'a') as outfile:
 		#writer = csv.writer(outfile, dialect="excel-tab")
 	
 	var = guess_var(testname)
 	for line in test:
 		name = line[0]
+		campaign = line[3]
 		val = find_val(name, testname, var)
-		row = [name, var, val, "", "", "", "","", testname]
+		row = [name, var, val, "", "", "", "","", testname, campaign]
 		#writer.writerow(row)
 		print "appending! " + name
 		ws.append_row(row)
@@ -94,6 +96,8 @@ def skipthis(testname, form):
 	if "Blank" in testname:
 		return True
 	if "_WMDE_" in testname:
+		return True
+	if "_WMCH_" in testname:
 		return True
 	if "B13_0701_" in testname:
 		return True #*TEMPORARY*
