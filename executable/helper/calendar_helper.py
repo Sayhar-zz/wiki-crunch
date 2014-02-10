@@ -42,12 +42,13 @@ FLOW = client.flow_from_clientsecrets(CLIENT_SECRETS,
 service = ""
 #GLOBAL ^
 REPORTURL = "https://reports.frdev.wikimedia.org/reports/allreports/"
-
+REPORTURL2 = "https://wiki-know.herokuapp.com/show/chronological/"
 def eventbuilder(test):
   noEnd = False
   startstring = ""
   endstring = ""
   testid = test[0]['ID']
+  testname = test[0]['Variable']
   description = []
 
 
@@ -57,17 +58,21 @@ def eventbuilder(test):
     raise SystemExit(0)
 
   start = datetime.strptime(start, "%Y%m%d%H%M%S")
-  startstring = start.strftime("%Y-%m-%dT%H:00:00Z")
+  startstring = start.strftime("%Y-%m-%dT%H:%M:00Z")
 
   end = test[0]['End time']
 
   if end is not None:
     end = datetime.strptime(end, "%Y%m%d%H%M%S")
-    endstring = end.strftime("%Y-%m-%dT%H:00:00Z")  
+    endstring = end.strftime("%Y-%m-%dT%H:%M:00Z")
+    onehour = start + timedelta(hours=1)
+    onehour = onehour.strftime("%Y-%m-%dT%H:%M:00Z")
   else:
     noEnd = True
     end = start + timedelta(hours=1)
-    endstring = end.strftime("%Y-%m-%dT%H:00:00Z")
+    endstring = end.strftime("%Y-%m-%dT%H:%M:00Z")
+    onehour = endstring
+
 
   banners = []
   shots =   []
@@ -79,27 +84,42 @@ def eventbuilder(test):
     shots.append(line['Screenshot'])
     shots2.append(line['Extra Screenshot'])
     info.append(line['Extra info'])
+  description.append("TESTNAME: "+ testname)
+  description.append("TEST ID: " + testid)
   description.append("\nvs.\n".join(banners))
-  
+
+  timestring = "FROM: " + start.strftime("%Y-%m-%d %H:%M") + "\n"
+  if(noEnd):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    timestring = timestring + "No end found yet. As of " + now
+  else:
+    timestring = timestring + "TO     : " + end.strftime("%Y-%m-%d %H:%M")
+
+  description.append(timestring)
   while None in info: info.remove(None)
   while None in shots: shots.remove(None)
   
-  description.append("\n".join(info))
+  if len(info) > 0:
+    description.append("\n".join(info))
 
-  description.append("")
+  #description.append("")
 
   
   bannershots = zip(banners, shots)
   for bs in bannershots:
     description.append(" : ".join(bs))
 
+  report = ["REPORT"]
   url = REPORTURL + testid + ".html"
-  description.append(url)
+  report.append(url)
+  url = REPORTURL2 + testid
+  report.append(url)
+  report = "\n".join(report)
+  description.append(report)
 
 
-
-  if noEnd:
-    description.append("WARNING: End time is inaccurate")
+  
+  description.append("NOTE: No matter the actual length of this test, it will always show up as an hour-long event on the calendar.")
   #pdb.set_trace()
 
   description = "\n\n".join(description)
@@ -107,12 +127,12 @@ def eventbuilder(test):
 
 
   event = {
-  'summary': testid,
+  'summary': testname,
   'start': {
     'dateTime': startstring
   },
   'end': {
-    'dateTime': endstring
+    'dateTime': onehour
   },
   'description': description,
   #'location':url,
