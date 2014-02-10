@@ -533,7 +533,10 @@ saveReport <- function(report, testid, testname, screenshots, errortable, settin
 	
 	#write the relevant line in metatable to a file
 	#mindex <- which(report$metatable$var == unique(BV$variable.for.url) & (report$metatable$test_id == testid) & (report$metatable$multiple == multiple))
-	mindex <- which(report$metatable$var == unique(BV$variable) & (report$metatable$test_id == testid) & (report$metatable$multiple == multiple) & (report$metatable$language == report$language))
+	
+	mindex <- which(report$metatable$var == unique(BV$variable) & (report$metatable$test_id == testid) & (report$metatable$multiple == multiple) & (report$metatable$language == report$language))	
+
+	
 	mpath <- file.path(report$path, 'meta.csv')
 	meta1 <- report$metatable[mindex,] 
 	write.csv(meta1, mpath, row.names=FALSE)
@@ -2662,7 +2665,7 @@ cleandata <- function(imps, clicks, testid, BV, settings, country, language, typ
 	
 	country_lang <- find_country_lang(icb, country, language)
 	country <- country_lang$country
-	lang <- country_lang$language
+	language <- country_lang$language
 
 	icb <- mask_some_countries(icb, settings)
 	if(icb$skip){
@@ -2678,7 +2681,7 @@ cleandata <- function(imps, clicks, testid, BV, settings, country, language, typ
 	
 	#How banner values are there?:
 	numtypes <- length(unique(donations$val))
-	toreturn <- list(numtypes=numtypes, skip=FALSE, lang=lang, country=country)
+	toreturn <- list(numtypes=numtypes, skip=FALSE, language=language, country=country)
 	
 	if(numtypes < 2){
 		#Easy to deal with - just skip
