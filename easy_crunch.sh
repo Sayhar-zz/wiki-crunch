@@ -1,19 +1,20 @@
 #! /usr/bin/env bash
 
-[ -z $1 ] && echo "need a testid (numerical)"
+[ -z $1 ] && echo "need a testid"
 [ -z $1 ] && exit
 
 
-#chmod 770 data/easyform.tsv
+
 cd executable &&
 source lenv/bin/activate &&
-./doc_downloader.sh 2> /dev/null
+echo 'downloading files'
+./doc_downloader.sh && 
+echo 'writing SQL' &&
 cd helper &&
 ./easyParse.py -t $1 --mysql &&
 cd .. && #executable 
 cd ../output &&
-#chmod 770 banners.sql 
-#chmod 770 donors.sql 
+echo 'querying db' &&
 mysql < banners.sql &&
 mysql < donors.sql &&
 cd ..  &&

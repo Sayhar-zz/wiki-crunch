@@ -2,12 +2,12 @@
 [ -z $1 ] && exit
 
 rm -r report/$1* 2> /dev/null
-Rscript easyReporter.R $1 > /dev/null || echo $1 >> crunch.errors.txt 
+Rscript easyReporter.R $1 > /dev/null || echo $1 >> crunch.errors.txt && echo "error with: $1"
 echo "done" 
 rm -r /srv/reports/$1* 2>/dev/null 
 
 cd executable &&
-for f in ../report/$1*; do ./get_info.sh $1 > "$f"/info.txt; done
+for f in ../report/$1*; do ./get_info.sh $1 > "$f"/info.txt 2>/dev/null; done
 cd ..
 
 
