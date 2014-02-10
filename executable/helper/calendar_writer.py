@@ -36,5 +36,4 @@ for cell in cell_list:
 	line = ws.row_values(cell.row)
 	rows.append( dict(zip(toprow, line)) )
 
-
 ch.easyinsert(rows)

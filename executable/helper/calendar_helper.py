@@ -44,6 +44,7 @@ service = ""
 REPORTURL = "https://reports.frdev.wikimedia.org/reports/allreports/"
 
 def eventbuilder(test):
+
   noEnd = False
   startstring = ""
   endstring = ""
