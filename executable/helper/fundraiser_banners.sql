@@ -19,8 +19,8 @@
 #and 
 #	banner regexp '^B13_12';
 
-select banner, imps, timestamp 
-	from (select banner, sum(count) as imps, min(timestamp) as timestamp 
+select banner, imps, timestamp, campaign 
+	from (select banner, sum(count) as imps, min(timestamp) as timestamp , campaign
 		from pgehres.bannerimpressions where 
 		timestamp <= '20141201010101' and 
 		timestamp >= '20131125010101' and 

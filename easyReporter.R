@@ -1716,7 +1716,7 @@ find_country_lang <- function(icb, country, language){
 		}
 	}
 
-	if(language == "YY"){
+	if(language == "yy"){
 		uu <- unique(imps$language)
 		idx <- which(is.na(uu))
 		if(length(idx) > 1){
@@ -2662,7 +2662,7 @@ cleandata <- function(imps, clicks, testid, BV, settings, country, language, typ
 	
 	country_lang <- find_country_lang(icb, country, language)
 	country <- country_lang$country
-	lang <- country_lang$lang
+	lang <- country_lang$language
 
 	icb <- mask_some_countries(icb, settings)
 	if(icb$skip){
