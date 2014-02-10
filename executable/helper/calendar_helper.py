@@ -41,7 +41,7 @@ FLOW = client.flow_from_clientsecrets(CLIENT_SECRETS,
 
 service = ""
 #GLOBAL ^
-REPORTURL = "https://lutetium.wikimedia.org/reports/allreports/"
+REPORTURL = "https://reports.frdev.wikimedia.org/reports/allreports/"
 
 def eventbuilder(test):
   noEnd = False
@@ -60,12 +60,14 @@ def eventbuilder(test):
   startstring = start.strftime("%Y-%m-%dT%H:00:00Z")
 
   end = test[0]['End time']
+
   if end is not None:
     end = datetime.strptime(end, "%Y%m%d%H%M%S")
     endstring = end.strftime("%Y-%m-%dT%H:00:00Z")  
   else:
     noEnd = True
-    endstring = start + timedelta(hours=1)
+    end = start + timedelta(hours=1)
+    endstring = end.strftime("%Y-%m-%dT%H:00:00Z")
 
   banners = []
   shots =   []
