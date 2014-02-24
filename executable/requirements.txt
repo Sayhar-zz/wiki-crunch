@@ -1,9 +1,9 @@
 gdata==2.0.18
 google-api-python-client==1.2
-googlecl==0.9.14
 gspread==0.1.0
 httplib2==0.8
 oauth2client==1.2
 simplejson==3.3.1
 uritemplate==0.6
 wsgiref==0.1.2
+googlecl==0.9.14
