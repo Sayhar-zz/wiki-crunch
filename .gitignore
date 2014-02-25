@@ -17,3 +17,5 @@ ecom_fast
 ecom_full
 *.dat
 *.json
+s3
+s3cfg
