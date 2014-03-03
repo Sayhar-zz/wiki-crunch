@@ -3,4 +3,4 @@
 
 source lenv/bin/activate &&
 cd helper &&
-python doc_downloader.py
+python old_doc_downloader.py
