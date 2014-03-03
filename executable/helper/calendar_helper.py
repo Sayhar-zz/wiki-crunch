@@ -43,12 +43,17 @@ service = ""
 #GLOBAL ^
 REPORTURL = "https://reports.frdev.wikimedia.org/reports/allreports/"
 REPORTURL2 = "https://wiki-know.herokuapp.com/show/chronological/"
+CAMPAIGNURL = "https://meta.wikimedia.org/w/index.php?title=Special:CentralNotice&method=listNoticeDetail&notice="
 def eventbuilder(test):
   noEnd = False
   startstring = ""
   endstring = ""
   testid = test[0]['ID']
   testname = test[0]['Variable']
+  try:
+    campaign = test[0]['Campaign']
+  except:
+    campaign = None
   description = []
 
 
@@ -88,17 +93,19 @@ def eventbuilder(test):
   description.append("TEST ID: " + testid)
   description.append("\nvs.\n".join(banners))
 
-  timestring = "FROM: " + start.strftime("%Y-%m-%d %H:%M") + "\n"
+  timestring = "FROM: " + start.strftime("%Y-%m-%d %H:%M") + " UTC\n"
   if(noEnd):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now = datetime.now().strftime("%Y-%m-%d %H:%M") + "UTC"
     timestring = timestring + "No end found yet. As of " + now
   else:
-    timestring = timestring + "TO     : " + end.strftime("%Y-%m-%d %H:%M")
+    timestring = timestring + "TO     : " + end.strftime("%Y-%m-%d %H:%M") + " UTC"
 
   description.append(timestring)
   while None in info: info.remove(None)
   while None in shots: shots.remove(None)
   
+  
+
   if len(info) > 0:
     description.append("\n".join(info))
 
@@ -108,6 +115,10 @@ def eventbuilder(test):
   bannershots = zip(banners, shots)
   for bs in bannershots:
     description.append(" : ".join(bs))
+
+  if campaign is not None:
+    campaign = "CAMPAIGN:\n" + CAMPAIGNURL + campaign
+    description.append(campaign)
 
   report = ["REPORT"]
   url = REPORTURL + testid + ".html"

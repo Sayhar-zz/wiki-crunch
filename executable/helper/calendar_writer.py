@@ -9,6 +9,7 @@ import json
 import argparse
 import calendar_helper as ch
 import pdb
+import dochelper as dh
 
 parser = argparse.ArgumentParser(description="Given a testid find the start and end times of that test.")
 parser.add_argument("id", help="Use this test")
@@ -19,6 +20,7 @@ config = json.load(open('config.json'))
 email = config['email']
 password = config['password']
 key = config['key']
+idc = int(config['idcolumn'])
 start_location = int(config['startcolumn'])
 end_location = int(config['endcolumn'])
 gc = gspread.login(email, password)
@@ -29,12 +31,6 @@ if ';' in inid:
 	print "ERROR. ATTEMPTED SQL INJECTION?"
 	raise SystemExit(0)
 
-cell_list = ws.findall(inid)
-rows = []
-toprow = ws.row_values(1)
-for cell in cell_list:
-	line = ws.row_values(cell.row)
-	rows.append( dict(zip(toprow, line)) )
-
+rows = dh.get_test(inid, ws, idc)
 
 ch.easyinsert(rows)

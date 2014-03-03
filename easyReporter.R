@@ -119,7 +119,7 @@ genMetaTable <- function(){
 
 	if(!dbExistsTable(con, 'meta') || nrow(dbReadTable(con,"meta")) < 1){
 		size <- 0
-		metatable <- data.frame(test_id = character(size), var=character(size), multiple=character(size), country=character(size), language=character(size), winner = character(size), loser=character(size), bestguess=numeric(size), p = numeric(size), lowerbound=numeric(size), upperbound=numeric(size), totalimpressions=integer(size), totaldonations=integer(size), time=integer(size), type=integer(size), testname=character(size), dollarimprovement=numeric(size), dollarlower=numeric(size), dollarupper=numeric(size), dollarimprovementpct=numeric(size), dollarlowerpct=numeric(size), dollarupperpct=numeric(size), stringsAsFactors=FALSE)
+		metatable <- data.frame(test_id = character(size), var=character(size), multiple=character(size), country=character(size), language=character(size), winner = character(size), loser=character(size), bestguess=numeric(size), p = numeric(size), lowerbound=numeric(size), upperbound=numeric(size), totalimpressions=integer(size), totaldonations=integer(size), time=integer(size), type=integer(size), testname=character(size), dollarimprovement=numeric(size), dollarlower=numeric(size), dollarupper=numeric(size), dollarimprovementpct=numeric(size), dollarlowerpct=numeric(size), dollarupperpct=numeric(size), campaign=character(size), stringsAsFactors=FALSE)
 	} else{
 		metatable <- dbReadTable(con, 'meta')
 	}
@@ -595,7 +595,7 @@ saveReport <- function(report, testid, testname, screenshots, errortable, settin
 	colnames(report$B)[4] <- "$/impression"
 	colnames(report$B)[5] <- "Dollar increase / 1000bi"
 	colnames(report$B)[6] <- "Impression Anomaly"
-	#a20diff
+	colnames(report$B)[7] <- "amt20diff"
 	colnames(report$B)[8] <- "p"
 	colnames(report$B)[9] <- "power"
 	colnames(report$B)[10] <- "lower 95% confidence (donation)"
@@ -1416,7 +1416,7 @@ newgrapher <- function(cumdata, settings, timespan=NA, finalimp="none", ylimit=c
 	}
 	
 	
-	title <- paste("p and confidence interval over time.")
+	title <- paste("p and confidence interval over time for number of donations.")
 	sub <- paste(variablename, "is winning.\n")
 	sub <- paste(sub, "95% range at end: ", round(finalrow$implower * 100, 1), "% - ", round(finalrow$impupper * 100, 1), "%. Mean: ", round(finalmean * 100, 1), "%. \n ", sep="")
 	sub <- paste(sub , "Total banner impressions: ", (finalrow$Control_imps + finalrow$Variable_imps), "\n", sep="")
@@ -2211,9 +2211,9 @@ banners_over_time <- function(banners, settings, timespan=NA, type='banner', per
 
 	ylim = c(0, NA)
 	
-	ps = simpleTheme(col=c("blue","red",'green', 'purple', 'brown'),pch=20, cex=1.3, lwd=2)
+	ps = list(col=c("blue","red",'green', 'purple', 'brown'),pch=20, cex=1.3, lwd=2, layout.heights=list(bottom.padding=10))
 	ylab = "Impressions"
-	key = list(space="bottom", cex=1.1, points=FALSE, rectangles=TRUE)
+	key = list(cex=1.1, points=FALSE, rectangles=TRUE, corner=c(.2,-1))
 	xlab = paste("Time (UTC), one dot per", minperdot, "minutes")
 	sub = paste(sub, "If these lines don't match, we know there's a problem.")
 	main = paste0(type, " impressions over time")
@@ -2315,9 +2315,9 @@ clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_c
 	#cut off extraneous data.
 
 	ylim = c(0, NA)
-	ps = simpleTheme(col=c("steelblue","tomato1",'springgreen', 'violet', 'brown4'),pch=20, cex=1.3, lwd=2)
+	ps = list(col=c("steelblue","tomato1",'springgreen', 'violet', 'brown4'),pch=20, cex=1.3, lwd=2, layout.heights=list(bottom.padding=10))
 	ylab = "Clicks"
-	key = list(space="bottom", cex=fs, points=FALSE, rectangles=TRUE)
+	key = list(cex=1.1, points=FALSE, rectangles=TRUE, corner=c(.2,-1))
 	xlab = paste("Time (UTC), one dot per", minperdot, "minutes")
 	sub = paste(sub, "Though one color should consistently do better than the other, they should rise and fall together.")
 	main = paste(type, "over time")
@@ -2882,8 +2882,6 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 
 		}
 		dbRemoveTable(con, "tmp")
-		
-		
 	}
 
 	topline <- function(banners, clicks, donations, dollardata, settings, iswinner=TRUE){
@@ -2965,10 +2963,9 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 			#F=shifttables, G=shifttables_dollars, 
 			
 		return(toreturn)	
-	
 	}
 	
-	updatemetatable <- function(metatable, cleaneddata, dollardata, language, var, multiple, country, type, settings, testname){
+	updatemetatable <- function(metatable, cleaneddata, dollardata, language, var, multiple, country, type, settings, testname, campaign){
 		roundby <- settings$digitsround
 
 		controlname <- cleaneddata$control
@@ -3015,7 +3012,7 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 		insertinto$dollarimprovementpct <- signif(dollardata$dollarimprovementpct * 100, roundby)
 		insertinto$dollarlowerpct <- signif(dollardata$dollarlowerpct * 100, roundby)
 		insertinto$dollarupperpct <- signif(dollardata$dollarupperpct * 100, roundby)
-
+		insertinto$campaign <- campaign
 		#insertinto$testname <- testname
 		#if(!iswinner || lastrow$implower < 0 ){
 		#	insertinto$winner <- paste0("(NO CLEAR WINNER): ", insertinto$winner)
@@ -3047,6 +3044,10 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 	}
 	
 	values_we_want <- unique(BV$value)
+	campaign <- BV$campaign[1]
+	if( is.na(campaign) | campaign == "unknown" ){
+		campaign <- names(sort(table(imps$campaign), decreasing=T))[1]
+	}
 	donations <- donations[donations$val %in% values_we_want,]
 	if(length(which(aggregate(contribution_id ~ val, donations, length)$contribution_id < 50)) > 1){
 		return(list(skip=TRUE, why=paste("total donations for one value less than", donationfloor), writeTable=FALSE))
@@ -3095,7 +3096,7 @@ oneReport <- function(testid, testname, metatable, imps, clicks, donations, BV, 
 		return(list(skip=TRUE, why=errorline))
 	}
 	
-	mtable <- updatemetatable(metatable, data, dollardata, language, var, multiple, country, type, settings, testname)
+	mtable <- updatemetatable(metatable, data, dollardata, language, var, multiple, country, type, settings, testname, campaign)
 	
 	toreturn <- list(
 		#F=toplineData$F, G=toplineData$G, 
@@ -3127,6 +3128,7 @@ if(isold && !issample){
 	TLBVVCL <- data.frame(apply(TLBVVCL, c(1,2), function(x){gsub("[[:space:]]+", ".", x)}))
 	TLBVVCL <- data.frame(apply(TLBVVCL, c(1,2), function(x){gsub(".TRUE", TRUE, x)}))
 	TLBVVCL$link <- NULL
+	TLBVVCL$campaign <- "unknown"
 }else{
 
 	if(issample){
@@ -3136,10 +3138,10 @@ if(isold && !issample){
 	}
 
 	oneForm <- oneForm[rowSums(is.na(oneForm)) != ncol(oneForm),] #snippet from http://stackoverflow.com/questions/6437164/removing-empty-rows-of-a-data-file-in-r
-	TBVD <- oneForm[c("test_id", 'Banner','Variable', 'Description', 'Description')]
+	TBVD <- oneForm[c("test_id", 'Banner','Variable', 'Description', 'Description','Campaign')]
 	TBVD['split.on.country'] <- FALSE
 	TBVD['split.on.language'] <- FALSE
-	colnames(TBVD) <- c('test_id', 'banner', 'variable', 'description', 'value', 'split.on.language', 'split.on.country')
+	colnames(TBVD) <- c('test_id', 'banner', 'variable', 'description', 'value', 'campaign', 'split.on.language', 'split.on.country')
 	TBVD[c("split.on.country", "split.on.language")][is.na(TBVD[c("split.on.country", "split.on.language")])] <- FALSE
 	TBVD <- data.frame(apply(TBVD, c(1,2), function(x){gsub("[[:space:]]+", ".", x)}))
 	TBVD <- data.frame(apply(TBVD, c(1,2), function(x){gsub(".TRUE", TRUE, x)}))

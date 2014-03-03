@@ -69,7 +69,8 @@ CREATE TABLE fr_test.meta
 	dollarupper FLOAT,
 	dollarimprovementpct FLOAT,
 	dollarlowerpct FLOAT, 
-	dollarupperpct FLOAT
+	dollarupperpct FLOAT,
+	campaign VARCHAR(255)
 );
 
 
