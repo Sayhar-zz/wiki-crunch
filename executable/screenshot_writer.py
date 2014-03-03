@@ -29,8 +29,11 @@ bannercol = int(config['bannercolumn'])
 sscol = int(config['screenshotcolumn'])
 
 rows = ws.col_values(bannercol)
+rows.reverse()
+length = len(rows) - 1
 
-for i, banner in enumerate(rows):
+for j, banner in enumerate(rows):
+	i = length - j
 	if banner is not None:
 		cellvalue = ws.cell(i + 1, sscol).value
 		if cellvalue is None: 
