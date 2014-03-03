@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 # This is calendar_writer.py
-
+#NOTE THIS DOES NOT WORK FOR OLD TESTS YET
 #What is does - given a test_id, write or update the correct event on the calendar. 
 
 import gspread

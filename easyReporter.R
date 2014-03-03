@@ -15,8 +15,8 @@
 ###SETTINGS:
 isshadow <- FALSE
 issample <- FALSE
-isold <- FALSE
-variable_in_testname <- FALSE
+isold <- TRUE
+variable_in_testname <- TRUE
 towrite <- TRUE
 
 library(xtable, quietly=TRUE)

@@ -2,6 +2,7 @@
 # Name: to_cal.sh
 # Takes in testid, writes it to calendar
 
+#NOTE: This does not work for old tests!:
 
 [ -z $1 ] && echo "need a testid"
 [ -z $1 ] && exit

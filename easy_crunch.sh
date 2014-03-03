@@ -11,7 +11,7 @@ echo 'downloading files'
 ./doc_downloader.sh && 
 echo 'writing SQL' &&
 cd helper &&
-./easyParse.py -t $1 --mysql &&
+./parseForm.py -t $1 --mysql &&
 cd .. && #executable 
 cd ../output &&
 echo 'querying db' &&
