@@ -1,13 +1,13 @@
 #! /usr/bin/env python
 #doc_downloader.py
 #needs gspread package
-#WARNING - doesn't work due to unicode. Sorry!
+#WARNING - if there's unicode, this will break
+#since unicdoe breaks this, you could get rid of the unicode-specific code and not worry about it. codecs, cStringIO, encoding=utf-8, etc. Haven't bothered to do it myself.
 import pdb
 import csv
 import gspread
 import json
 import codecs
-import cStringIO
 
 config = json.load(open('config.json'))
 email = config['email']
@@ -15,7 +15,6 @@ password = config['password']
 gc = gspread.login(email, password)
 
 threeFiles = {"testForm.tsv":"0ArMJ6Soyh6dxdGllR0k2ZTVNN0kwZkltbk96QTQxLVE", "TLBVVCL.tsv":"0ArMJ6Soyh6dxdDAtZ0pSZ1UyNzB4OVAwbkJvRnlwVlE","screenshots.tsv":"0ArMJ6Soyh6dxdDhCZzB3ZXFKZ3FUdThzenp0U0pUUnc"}
-#threeFiles = {"testForm.tsv":"0ArMJ6Soyh6dxdGllR0k2ZTVNN0kwZkltbk96QTQxLVE", "screenshots.tsv":"0ArMJ6Soyh6dxdDhCZzB3ZXFKZ3FUdThzenp0U0pUUnc"}
 
 
 
