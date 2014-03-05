@@ -14,6 +14,6 @@ rm crunch.errors.txt 2> /dev/null
 for var in $alltids 
 do
     echo "$var"
-    ./easy_crunch.sh $var
+    ./query_crunch.sh $var
 done
 
