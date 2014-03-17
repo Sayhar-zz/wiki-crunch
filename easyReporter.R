@@ -2312,7 +2312,13 @@ clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_c
 	
 	newdata <- nndata[order(nndata$newtime),] 
 	start <- newdata[1,]$newtime
-	end <- start + timespan
+	#in a few cases, there might be a couple clicks in the beginning (due to user error), 
+	# hours before the test really started.
+	# When that happens, "start" + timespan would give us a time window before the test really took off
+	# So we need to find the "real start", when clicks rise > threshold.
+	# We start the timespan window from there.
+	rstart <- head(subset(newdata, imps > threshold),1)$newtime
+	end <- rstart + timespan
 	nndata <- nndata[nndata$newtime <= end,]
 	#cut off extraneous data.
 
