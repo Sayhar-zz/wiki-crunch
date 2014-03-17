@@ -689,6 +689,8 @@ saveReport <- function(report, testid, testname, screenshots, errortable, settin
 				filename <- paste("diagnostic", i, sep="_")
 			}else{
 				filename <- paste("diagnostic", name, i, sep="_")
+				#debugging
+				if(i == 3){browser()}
 			}
 			jpeg(file.path(report$path, paste0(filename, ".jpeg")), width=1200, height=800)	
 			print(report$extraGraphs[[name]][i])
@@ -3134,10 +3136,15 @@ if(isold && !issample){
 	if(issample){
 		oneForm <- read.delim("./sample/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
 	}else{
-		oneForm <- read.delim("./data/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)		
+		oneForm <- read.delim("./data/easyform.tsv", quote="", na.strings = "", row.names=NULL, strip.white=TRUE)
 	}
 
 	oneForm <- oneForm[rowSums(is.na(oneForm)) != ncol(oneForm),] #snippet from http://stackoverflow.com/questions/6437164/removing-empty-rows-of-a-data-file-in-r
+	
+	#newer oneForm's don't have a "test_id" column - but they do have an "ID" column. So copy it.
+	if(! "test_id" %in% colnames(oneForm) & "ID" %in% colnames(oneForm)){
+		oneForm$test_id = oneForm$ID
+	}
 	TBVD <- oneForm[c("test_id", 'Banner','Variable', 'Description', 'Description','Campaign')]
 	TBVD['split.on.country'] <- FALSE
 	TBVD['split.on.language'] <- FALSE
