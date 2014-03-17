@@ -689,8 +689,7 @@ saveReport <- function(report, testid, testname, screenshots, errortable, settin
 				filename <- paste("diagnostic", i, sep="_")
 			}else{
 				filename <- paste("diagnostic", name, i, sep="_")
-				#debugging
-				if(i == 3){browser()}
+				
 			}
 			jpeg(file.path(report$path, paste0(filename, ".jpeg")), width=1200, height=800)	
 			print(report$extraGraphs[[name]][i])
@@ -2255,7 +2254,6 @@ banners_over_time <- function(banners, settings, timespan=NA, type='banner', per
 	return(graph)
 }
 
-
 clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_country=FALSE){
 	numdots <- settings$numdots
 	threshold <- settings$donate_threshold
@@ -2276,7 +2274,7 @@ clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_c
 		timefind <- clicks
 		#group by 1 minute
 		timefind$timestamp <- minuteGrouper(clicks$timestamp, 1)
-		
+
 		timefind <- aggregate(imps ~ timestamp * val, timefind, sum)
 
 		start <- head(timefind,1)$timestamp
@@ -2286,20 +2284,20 @@ clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_c
 		}else{
 			end <- tail(clicks,1)$timestamp
 		}
-		
-		
+
+
 		start <- as.POSIXct(start, tz="UTC", origin="1970-01-01")
 		end <- as.POSIXct(end, tz="UTC", origin="1970-01-01")
-		
+
 		clicks <- subset(clicks, timestamp>= start & timestamp <=end)
 		timespan <- difftime(end, start, tz="UTC", units='mins')
 	}
 	#Threshold - if clicks/minute are lower than threshold, then stop the "viewing window" here.
 	#Numdots - number of dots in the graph.
-	
+
 	minperdot <- ceiling(as.double(timespan) / numdots)
-	
-	
+
+
 	ndata <- clicks	
 	ndata$newtime <- minuteGrouper(ndata$timestamp, minperdot)
 	if(per_country){
@@ -2309,10 +2307,16 @@ clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_c
 		ndata <- ndata[c('newtime', 'imps', 'val')]
 		nndata <- cast(melt(ndata, id = c("newtime", "val")), newtime * val~ variable, fun.aggregate = sum)
 	}
-	
+
 	newdata <- nndata[order(nndata$newtime),] 
 	start <- newdata[1,]$newtime
-	end <- start + timespan
+	#in a few cases, there might be a couple clicks in the beginning (due to user error), 
+	# hours before the test really started.
+	# When that happens, "start" + timespan would give us a time window before the test really took off
+	# So we need to find the "real start", when clicks rise > threshold.
+	# We start the timespan window from there.
+	rstart <- head(subset(newdata, imps > threshold),1)$newtime
+	end <- rstart + timespan
 	nndata <- nndata[nndata$newtime <= end,]
 	#cut off extraneous data.
 
@@ -2353,7 +2357,7 @@ clicks_over_time <- function(clicks, settings, timespan=NA, type="clicks", per_c
 		 scales=list(cex=fs)
 		 )	
 	}
-	
+
 	return(graph)
 }
 
